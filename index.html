@@ -15,6 +15,9 @@
   <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
   <link rel="manifest" href="manifest.json">
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -126,9 +129,21 @@
 <body>
   <!-- ==================== CONFIGURATION ==================== -->
   <script>
+    // Firebase Configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyAivbTagLFR7FKyoaqMj0Gcjr4_ciAN79c",
+      authDomain: "iatse-478-ideas-board.firebaseapp.com",
+      projectId: "iatse-478-ideas-board",
+      storageBucket: "iatse-478-ideas-board.firebasestorage.app",
+      messagingSenderId: "547232221772",
+      appId: "1:547232221772:web:34616e9c0e8fa126e302e9"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
     const CONFIG = {
-      JSONBIN_BIN_ID: '696a2156ae596e708fe050ec',
-      JSONBIN_API_KEY: '$2a$10$XMpqAlVtxHtkomcE8HMRxevGBl0EOlCPUPkMnOhzJ4akwnJeNvHJS',
       ADMIN_CODE: '478'
     };
 
@@ -307,104 +322,88 @@
       isEditingIdea: false
     };
 
-    // Local storage cache key
-    const CACHE_KEY = 'local478_data_cache';
+    // ==================== FIREBASE FUNCTIONS ====================
+    const ideasRef = db.collection('ideas');
+    const categoriesRef = db.collection('categories');
 
-    // ==================== API FUNCTIONS ====================
-    function getCachedData() {
-      try {
-        const cached = localStorage.getItem(CACHE_KEY);
-        if (cached) return JSON.parse(cached);
-      } catch (e) {}
-      return null;
-    }
-
-    function setCachedData(data) {
-      try {
-        localStorage.setItem(CACHE_KEY, JSON.stringify(data));
-      } catch (e) {
-        console.warn('Failed to cache data:', e);
-      }
-    }
-
-    async function fetchData() {
-      try {
-        const response = await fetch(`https://api.jsonbin.io/v3/b/${CONFIG.JSONBIN_BIN_ID}/latest`, {
-          headers: { 'X-Access-Key': CONFIG.JSONBIN_API_KEY }
-        });
-        if (!response.ok) throw new Error(`Failed to fetch: ${response.status}`);
-        const data = await response.json();
-        // Cache for offline use
-        setCachedData(data.record);
-        return data.record;
-      } catch (err) {
-        // Try to use cached data when offline
-        const cached = getCachedData();
-        if (cached) {
-          console.log('Using cached data (offline)');
-          return cached;
+    // Real-time listener for ideas
+    function subscribeToIdeas() {
+      return ideasRef.onSnapshot(snapshot => {
+        state.ideas = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        render();
+        // Update selected idea if it's open
+        if (state.selectedIdea) {
+          state.selectedIdea = state.ideas.find(i => i.id === state.selectedIdea.id);
+          if (state.selectedIdea) renderIdeaModal();
         }
-        throw err;
-      }
-    }
-
-    async function saveData() {
-      // Always cache locally first
-      setCachedData({ ideas: state.ideas, categories: state.categories });
-
-      if (state.isOffline) {
-        showToast('Saved locally. Will sync when online.');
-        return;
-      }
-
-      const response = await fetch(`https://api.jsonbin.io/v3/b/${CONFIG.JSONBIN_BIN_ID}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Access-Key': CONFIG.JSONBIN_API_KEY
-        },
-        body: JSON.stringify({ ideas: state.ideas, categories: state.categories })
+      }, err => {
+        console.error('Ideas listener error:', err);
+        showToast('Connection error. Retrying...');
       });
-      if (!response.ok) throw new Error(`Failed to save: ${response.status}`);
     }
 
-    async function syncData() {
-      if (state.isOffline) return;
-      const cached = getCachedData();
-      if (!cached) return;
+    // Real-time listener for categories
+    function subscribeToCategories() {
+      return categoriesRef.onSnapshot(snapshot => {
+        state.categories = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        render();
+      }, err => {
+        console.error('Categories listener error:', err);
+      });
+    }
 
-      try {
-        await fetch(`https://api.jsonbin.io/v3/b/${CONFIG.JSONBIN_BIN_ID}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Access-Key': CONFIG.JSONBIN_API_KEY
-          },
-          body: JSON.stringify(cached)
-        });
-        showToast('Data synced successfully!');
-      } catch (err) {
-        console.error('Sync failed:', err);
+    // Save a single idea
+    async function saveIdea(idea) {
+      const { id, ...data } = idea;
+      data.updatedAt = Date.now();
+      if (id) {
+        await ideasRef.doc(id).set(data, { merge: true });
+      } else {
+        const docRef = await ideasRef.add(data);
+        return docRef.id;
       }
     }
 
-    async function refreshData() {
-      if (state.isRefreshing) return;
-      state.isRefreshing = true;
+    // Delete an idea
+    async function deleteIdeaFromDb(ideaId) {
+      await ideasRef.doc(ideaId).delete();
+    }
+
+    // Save a single category
+    async function saveCategory(category) {
+      const { id, ...data } = category;
+      if (id) {
+        await categoriesRef.doc(id).set(data, { merge: true });
+      } else {
+        const docRef = await categoriesRef.add(data);
+        return docRef.id;
+      }
+    }
+
+    // Initialize default categories if none exist
+    async function initializeCategories() {
+      const snapshot = await categoriesRef.get();
+      if (snapshot.empty) {
+        const defaultCategories = [
+          { label: 'Workflow', color: '#3B82F6' },
+          { label: 'Safety', color: '#EF4444' },
+          { label: 'Training', color: '#8B5CF6' },
+          { label: 'Equipment', color: '#F59E0B' },
+          { label: 'Communication', color: '#10B981' },
+          { label: 'Benefits', color: '#EC4899' }
+        ];
+        for (const cat of defaultCategories) {
+          await categoriesRef.add(cat);
+        }
+      }
+    }
+
+    function refreshData() {
+      // With real-time sync, just show a visual feedback
       const btn = document.getElementById('refresh-btn');
       btn.classList.add('animate-spin');
-      try {
-        const data = await fetchData();
-        state.ideas = data.ideas || [];
-        state.categories = data.categories || [];
-        render();
-      } catch (err) {
-        console.error('Refresh failed:', err);
-        showToast('Failed to refresh. Try again.');
-      } finally {
-        state.isRefreshing = false;
-        btn.classList.remove('animate-spin');
-      }
+      setTimeout(() => btn.classList.remove('animate-spin'), 500);
+      showToast('Data is live-synced!');
     }
 
     // Simple toast notification
@@ -424,9 +423,12 @@
     // ==================== INITIALIZATION ====================
     async function init() {
       try {
-        const data = await fetchData();
-        state.ideas = data.ideas || [];
-        state.categories = data.categories || [];
+        // Initialize default categories if needed
+        await initializeCategories();
+
+        // Subscribe to real-time updates
+        subscribeToIdeas();
+        subscribeToCategories();
 
         document.getElementById('loading').classList.add('hidden');
         document.getElementById('main-app').classList.remove('hidden');
@@ -723,7 +725,6 @@
       }
 
       const newIdea = {
-        id: generateId(),
         title,
         description,
         submitter,
@@ -736,18 +737,14 @@
         updatedAt: Date.now()
       };
 
-      state.ideas.push(newIdea);
-
       try {
-        await saveData();
+        await ideasRef.add(newIdea);
         document.getElementById('submit-form-container').classList.add('hidden');
         document.getElementById('submit-success').classList.remove('hidden');
         setTimeout(() => {
           closeSubmitModal();
-          render();
         }, 1500);
       } catch (err) {
-        state.ideas.pop();
         showToast('Failed to submit. Try again.');
       } finally {
         btn.disabled = false;
@@ -995,18 +992,13 @@
 
     // ==================== DATA OPERATIONS ====================
     async function moveIdea(ideaId, newStage) {
-      const idea = state.ideas.find(i => i.id === ideaId);
-      if (!idea) return;
-      const oldStage = idea.stage;
-      idea.stage = newStage;
-      idea.updatedAt = Date.now();
       try {
-        await saveData();
-        renderIdeaModal();
-        render();
+        await ideasRef.doc(ideaId).update({
+          stage: newStage,
+          updatedAt: Date.now()
+        });
         showToast('Idea moved');
       } catch (err) {
-        idea.stage = oldStage;
         showToast('Failed to move. Try again.');
       }
     }
@@ -1024,38 +1016,27 @@
 
     async function confirmBlockIdea(ideaId) {
       const reason = document.getElementById(`block-reason-${ideaId}`).value.trim();
-      const idea = state.ideas.find(i => i.id === ideaId);
-      if (!idea) return;
-      idea.blocked = true;
-      idea.blockedReason = reason;
-      idea.updatedAt = Date.now();
       try {
-        await saveData();
-        state.selectedIdea = idea;
-        renderIdeaModal();
-        render();
+        await ideasRef.doc(ideaId).update({
+          blocked: true,
+          blockedReason: reason,
+          updatedAt: Date.now()
+        });
         showToast('Idea blocked');
       } catch (err) {
-        idea.blocked = false;
-        idea.blockedReason = '';
         showToast('Failed. Try again.');
       }
     }
 
     async function unblockIdea(ideaId) {
-      const idea = state.ideas.find(i => i.id === ideaId);
-      if (!idea) return;
-      idea.blocked = false;
-      idea.blockedReason = '';
-      idea.updatedAt = Date.now();
       try {
-        await saveData();
-        state.selectedIdea = idea;
-        renderIdeaModal();
-        render();
+        await ideasRef.doc(ideaId).update({
+          blocked: false,
+          blockedReason: '',
+          updatedAt: Date.now()
+        });
         showToast('Idea unblocked');
       } catch (err) {
-        idea.blocked = true;
         showToast('Failed. Try again.');
       }
     }
@@ -1072,19 +1053,17 @@
       if (!idea) return;
 
       const note = { id: generateId(), text, author, date: Date.now() };
-      idea.notes = idea.notes || [];
-      idea.notes.push(note);
-      idea.updatedAt = Date.now();
+      const notes = [...(idea.notes || []), note];
 
       try {
-        await saveData();
+        await ideasRef.doc(ideaId).update({
+          notes: notes,
+          updatedAt: Date.now()
+        });
         document.getElementById('note-author').value = '';
         document.getElementById('note-text').value = '';
-        state.selectedIdea = idea;
-        renderIdeaModal();
         showToast('Note added');
       } catch (err) {
-        idea.notes.pop();
         showToast('Failed. Try again.');
       }
     }
@@ -1093,19 +1072,15 @@
       const idea = state.ideas.find(i => i.id === ideaId);
       if (!idea) return;
 
-      const noteIndex = (idea.notes || []).findIndex(n => n.id === noteId);
-      if (noteIndex === -1) return;
-
-      const deletedNote = idea.notes.splice(noteIndex, 1)[0];
-      idea.updatedAt = Date.now();
+      const notes = (idea.notes || []).filter(n => n.id !== noteId);
 
       try {
-        await saveData();
-        state.selectedIdea = idea;
-        renderIdeaModal();
+        await ideasRef.doc(ideaId).update({
+          notes: notes,
+          updatedAt: Date.now()
+        });
         showToast('Note deleted');
       } catch (err) {
-        idea.notes.splice(noteIndex, 0, deletedNote);
         showToast('Failed. Try again.');
       }
     }
@@ -1113,16 +1088,13 @@
     async function addIdeaCategory(ideaId, catId) {
       const idea = state.ideas.find(i => i.id === ideaId);
       if (!idea) return;
-      idea.categories = idea.categories || [];
-      idea.categories.push(catId);
-      idea.updatedAt = Date.now();
+      const categories = [...(idea.categories || []), catId];
       try {
-        await saveData();
-        state.selectedIdea = idea;
-        renderIdeaModal();
-        render();
+        await ideasRef.doc(ideaId).update({
+          categories: categories,
+          updatedAt: Date.now()
+        });
       } catch (err) {
-        idea.categories.pop();
         showToast('Failed. Try again.');
       }
     }
@@ -1130,17 +1102,13 @@
     async function removeIdeaCategory(ideaId, catId) {
       const idea = state.ideas.find(i => i.id === ideaId);
       if (!idea) return;
-      const index = (idea.categories || []).indexOf(catId);
-      if (index === -1) return;
-      idea.categories.splice(index, 1);
-      idea.updatedAt = Date.now();
+      const categories = (idea.categories || []).filter(c => c !== catId);
       try {
-        await saveData();
-        state.selectedIdea = idea;
-        renderIdeaModal();
-        render();
+        await ideasRef.doc(ideaId).update({
+          categories: categories,
+          updatedAt: Date.now()
+        });
       } catch (err) {
-        idea.categories.splice(index, 0, catId);
         showToast('Failed. Try again.');
       }
     }
@@ -1154,17 +1122,11 @@
         return;
       }
 
-      const index = state.ideas.findIndex(i => i.id === ideaId);
-      if (index === -1) return;
-      const deleted = state.ideas.splice(index, 1)[0];
-
       try {
-        await saveData();
+        await ideasRef.doc(ideaId).delete();
         closeIdeaModal();
-        render();
         showToast('Idea deleted');
       } catch (err) {
-        state.ideas.splice(index, 0, deleted);
         showToast('Failed. Try again.');
       }
     }
@@ -1188,39 +1150,24 @@
         return;
       }
 
-      const idea = state.ideas.find(i => i.id === ideaId);
-      if (!idea) return;
-
-      const oldTitle = idea.title;
-      const oldDescription = idea.description;
-
-      idea.title = title;
-      idea.description = description;
-      idea.updatedAt = Date.now();
-
       try {
-        await saveData();
+        await ideasRef.doc(ideaId).update({
+          title: title,
+          description: description,
+          updatedAt: Date.now()
+        });
         state.isEditingIdea = false;
-        state.selectedIdea = idea;
-        renderIdeaModal();
-        render();
         showToast('Idea updated');
       } catch (err) {
-        idea.title = oldTitle;
-        idea.description = oldDescription;
         showToast('Failed. Try again.');
       }
     }
 
     async function addCategory(label, color) {
-      const newCat = { id: generateId(), label, color };
-      state.categories.push(newCat);
       try {
-        await saveData();
-        render();
+        await categoriesRef.add({ label, color });
         showToast('Category added');
       } catch (err) {
-        state.categories.pop();
         showToast('Failed. Try again.');
       }
     }
@@ -1310,8 +1257,7 @@
         banner.classList.remove('hidden');
       } else {
         banner.classList.add('hidden');
-        // Sync data when coming back online
-        syncData();
+        // Firebase syncs automatically when back online
       }
     }
 
