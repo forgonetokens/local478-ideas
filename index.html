@@ -878,10 +878,10 @@
             </div>
             <div class="flex items-center gap-2">
               <button onclick="voteIdea('${idea.id}', 'up')" class="flex items-center gap-1 px-3 py-2 rounded-lg text-sm transition-colors touch-active ${(idea.votes || []).includes(getVoterId() + ':up') ? 'bg-green-600/30 text-green-400' : 'bg-slate-700 text-slate-400 active:bg-green-600/20'}">
-                👍 <span>${(idea.upvotes || 0)}</span>
+                🤩 <span>${(idea.upvotes || 0)}</span>
               </button>
               <button onclick="voteIdea('${idea.id}', 'down')" class="flex items-center gap-1 px-3 py-2 rounded-lg text-sm transition-colors touch-active ${(idea.votes || []).includes(getVoterId() + ':down') ? 'bg-red-600/30 text-red-400' : 'bg-slate-700 text-slate-400 active:bg-red-600/20'}">
-                👎 <span>${(idea.downvotes || 0)}</span>
+                😕 <span>${(idea.downvotes || 0)}</span>
               </button>
             </div>
           </div>
