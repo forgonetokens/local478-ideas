@@ -79,13 +79,6 @@
     .success-pulse { animation: successPulse 300ms ease-out; }
     .blocked-glow { box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.5), 0 0 20px rgba(239, 68, 68, 0.2); }
 
-    /* Swipe indicator */
-    @keyframes swipeHint {
-      0%, 100% { transform: translateX(0); opacity: 0.5; }
-      50% { transform: translateX(-10px); opacity: 1; }
-    }
-    .swipe-hint { animation: swipeHint 2s ease-in-out infinite; }
-
     /* Pull to refresh */
     .pull-indicator {
       transition: transform 0.2s ease-out;
@@ -122,12 +115,6 @@
       .modal-mobile-full .modal-scroll {
         max-height: calc(100vh - 200px) !important;
       }
-    }
-
-    /* Stage tabs mobile optimization */
-    @media (max-width: 480px) {
-      .stage-tab-label { display: none; }
-      .stage-tab { padding: 0.5rem 0.75rem !important; }
     }
 
     /* Safe area bottom padding for fixed elements */
@@ -488,21 +475,21 @@
     function renderPipelineView() {
       const stageIdeas = state.ideas.filter(i => i.stage === state.activeStage);
       const activeIndex = STAGES.findIndex(s => s.id === state.activeStage);
+      const activeStage = STAGES[activeIndex];
+      const blockedCount = stageIdeas.filter(i => i.blocked).length;
 
       return `
         <div class="flex-shrink-0 bg-slate-900 border-b border-slate-700">
           <div class="px-2 sm:px-4">
-            <div class="flex items-center gap-1 sm:gap-2 overflow-x-auto py-2 sm:py-3 scrollbar-hide scroll-container">
+            <div class="flex items-center gap-1 overflow-x-auto py-2 scrollbar-hide scroll-container">
               ${STAGES.map(stage => {
                 const count = state.ideas.filter(i => i.stage === stage.id).length;
                 const blocked = state.ideas.filter(i => i.stage === stage.id && i.blocked).length;
                 const isActive = state.activeStage === stage.id;
                 return `
-                  <button data-stage="${stage.id}" onclick="setActiveStage('${stage.id}')" class="stage-tab flex items-center gap-1 sm:gap-2 px-2.5 py-2 sm:px-4 sm:py-2 rounded-lg whitespace-nowrap transition-all touch-active min-h-[44px] ${isActive ? 'text-white' : 'text-slate-400'}" style="${isActive ? `background-color: ${stage.color}30; color: ${stage.color}` : ''}">
-                    <span class="text-base sm:text-lg">${stage.emoji}</span>
-                    <span class="stage-tab-label font-medium text-sm">${stage.label}</span>
-                    <span class="px-1.5 py-0.5 rounded-full text-xs ${isActive ? 'bg-white/20' : 'bg-slate-700'}">${count}</span>
-                    ${blocked > 0 ? `<span class="text-red-400 text-xs">🚩</span>` : ''}
+                  <button data-stage="${stage.id}" onclick="setActiveStage('${stage.id}')" class="stage-tab flex flex-col items-center justify-center px-2 py-1.5 sm:px-3 sm:py-2 rounded-lg whitespace-nowrap transition-all touch-active min-w-[44px] min-h-[44px] ${isActive ? 'text-white' : 'text-slate-400'}" style="${isActive ? `background-color: ${stage.color}30; color: ${stage.color}` : ''}">
+                    <span class="text-lg sm:text-xl">${stage.emoji}</span>
+                    <span class="text-[10px] sm:text-xs mt-0.5 ${isActive ? 'font-semibold' : 'font-normal text-slate-500'}">${count}${blocked > 0 ? '🚩' : ''}</span>
                   </button>
                 `;
               }).join('')}
@@ -510,16 +497,27 @@
           </div>
         </div>
 
-        <!-- Navigation Arrows (Desktop) -->
-        <div class="hidden md:flex items-center justify-between px-4 py-2 flex-shrink-0 bg-slate-900/50">
-          <button onclick="navigateStage(-1)" ${activeIndex === 0 ? 'disabled' : ''} class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-400 hover:text-white hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors touch-active min-h-[44px]">
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
-            ${activeIndex > 0 ? STAGES[activeIndex - 1].label : ''}
-          </button>
-          <button onclick="navigateStage(1)" ${activeIndex === STAGES.length - 1 ? 'disabled' : ''} class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-400 hover:text-white hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors touch-active min-h-[44px]">
-            ${activeIndex < STAGES.length - 1 ? STAGES[activeIndex + 1].label : ''}
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-          </button>
+        <!-- Current Stage Header -->
+        <div class="flex-shrink-0 px-3 sm:px-4 py-3 bg-slate-850 border-b border-slate-700">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-lg flex items-center justify-center text-2xl" style="background-color: ${activeStage.color}20">
+                ${activeStage.emoji}
+              </div>
+              <div>
+                <h2 class="text-lg font-semibold text-white">${activeStage.label}</h2>
+                <p class="text-xs text-slate-400">${stageIdeas.length} idea${stageIdeas.length !== 1 ? 's' : ''}${blockedCount > 0 ? ` · ${blockedCount} blocked` : ''}</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-1">
+              <button onclick="navigateStage(-1)" ${activeIndex === 0 ? 'disabled' : ''} class="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors touch-active">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+              </button>
+              <button onclick="navigateStage(1)" ${activeIndex === STAGES.length - 1 ? 'disabled' : ''} class="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors touch-active">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+              </button>
+            </div>
+          </div>
         </div>
 
         <!-- Ideas Content -->
@@ -542,10 +540,6 @@
           </div>
         </div>
 
-        <!-- Mobile swipe hint -->
-        <div class="md:hidden text-center py-2 text-xs text-slate-500 flex-shrink-0 safe-bottom bg-slate-900/50">
-          <span class="swipe-hint inline-block">👈</span> Swipe to navigate stages <span class="swipe-hint inline-block" style="animation-delay: 0.5s">👉</span>
-        </div>
       `;
     }
 
