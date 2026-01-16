@@ -566,7 +566,7 @@
               </div>
               <div>
                 <h2 class="text-lg font-semibold text-white">${activeStage.label}</h2>
-                <p class="text-xs text-slate-400">${stageIdeas.length} idea${stageIdeas.length !== 1 ? 's' : ''}${blockedCount > 0 ? ` · ${blockedCount} blocked` : ''}</p>
+                <p class="text-xs text-slate-400">${stageIdeas.length} idea${stageIdeas.length !== 1 ? 's' : ''}${blockedCount > 0 ? ` · ${blockedCount} stalled` : ''}</p>
               </div>
             </div>
             <div class="flex items-center gap-1">
@@ -878,7 +878,7 @@
               `}
               <div class="flex items-center gap-2 flex-wrap">
                 <span class="px-3 py-1 rounded-full text-xs sm:text-sm font-medium" style="background-color: ${stage.color}20; color: ${stage.color}">${stage.emoji} ${stage.label}</span>
-                ${idea.blocked ? '<span class="px-3 py-1 rounded-full text-xs sm:text-sm font-medium bg-red-500/20 text-red-400">🚩 Blocked</span>' : ''}
+                ${idea.blocked ? '<span class="px-3 py-1 rounded-full text-xs sm:text-sm font-medium bg-red-500/20 text-red-400">🚩 Stalled</span>' : ''}
               </div>
             </div>
             <div class="flex items-center gap-1">
@@ -914,7 +914,7 @@
 
           ${idea.blocked && idea.blockedReason ? `
             <div class="bg-red-500/10 border border-red-500/30 rounded-xl p-4">
-              <h3 class="text-xs sm:text-sm font-medium text-red-400 mb-1">Blocked Reason</h3>
+              <h3 class="text-xs sm:text-sm font-medium text-red-400 mb-1">Stalled Reason</h3>
               <p class="text-red-300 text-sm">${escapeHtml(idea.blockedReason)}</p>
             </div>
           ` : ''}
@@ -1014,7 +1014,7 @@
                         <button onclick="cancelBlockIdea('${idea.id}')" class="flex-1 sm:flex-none px-4 py-3 bg-slate-700 active:bg-slate-600 text-white text-sm rounded-xl transition-colors touch-active">Cancel</button>
                       </div>
                     </div>
-                    <button id="block-btn-${idea.id}" onclick="showBlockForm('${idea.id}')" class="px-4 py-3 rounded-xl text-sm font-medium transition-colors bg-red-600/20 active:bg-red-600/30 text-red-400 touch-active min-h-[48px]">🚩 Flag as Blocked</button>
+                    <button id="block-btn-${idea.id}" onclick="showBlockForm('${idea.id}')" class="px-4 py-3 rounded-xl text-sm font-medium transition-colors bg-red-600/20 active:bg-red-600/30 text-red-400 touch-active min-h-[48px]">🚩 Flag as Stalled</button>
                   `}
                 </div>
               </div>
@@ -1259,7 +1259,7 @@
           blockedReason: reason,
           updatedAt: Date.now()
         });
-        showToast('Idea blocked');
+        showToast('Idea marked as stalled');
       } catch (err) {
         showToast('Failed. Try again.');
       }
@@ -1272,7 +1272,7 @@
           blockedReason: '',
           updatedAt: Date.now()
         });
-        showToast('Idea unblocked');
+        showToast('Stall removed');
       } catch (err) {
         showToast('Failed. Try again.');
       }
