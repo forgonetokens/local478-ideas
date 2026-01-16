@@ -1,0 +1,23 @@
+{
+  "name": "Local 478 Ideas Pipeline",
+  "short_name": "478 Ideas",
+  "description": "Collaborative idea tracking board for IATSE Local 478",
+  "start_url": "/local478-ideas/",
+  "display": "standalone",
+  "background_color": "#1e3a5f",
+  "theme_color": "#1e3a5f",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
