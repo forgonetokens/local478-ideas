@@ -204,12 +204,15 @@
 
             <!-- Actions -->
             <div class="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-              <button onclick="refreshData()" id="refresh-btn" class="p-2.5 sm:p-2 text-slate-400 hover:text-white transition-colors rounded-lg touch-active" title="Refresh">
-                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+              <button onclick="openBugReportModal()" class="p-2.5 sm:p-2 text-slate-400 hover:text-white transition-colors rounded-lg touch-active" title="Report Bug">
+                🐛
               </button>
-              <button onclick="openSubmitModal()" class="px-2.5 py-2 sm:px-3 sm:py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-medium rounded-lg transition-colors touch-active">
-                <span class="sm:hidden">+</span>
-                <span class="hidden sm:inline">+ Submit</span>
+              <button onclick="openBugListModal()" id="btn-bug-list" class="hidden p-2.5 sm:p-2 text-red-400 hover:text-red-300 transition-colors rounded-lg touch-active" title="View Bug Reports">
+                📋
+              </button>
+              <button onclick="openSubmitModal()" class="px-3 py-2 sm:px-4 sm:py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white text-xs sm:text-sm font-semibold rounded-lg transition-all touch-active shadow-lg shadow-blue-500/25">
+                <span class="sm:hidden">💡 Add</span>
+                <span class="hidden sm:inline">💡 Submit Idea</span>
               </button>
               <button onclick="toggleAdmin()" id="btn-admin" class="px-2.5 py-2 sm:px-3 sm:py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs sm:text-sm font-medium rounded-lg transition-colors touch-active">
                 <span class="sm:hidden">⚙️</span>
@@ -294,6 +297,51 @@
             <button type="submit" class="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors touch-active font-medium">Login</button>
           </div>
         </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bug Report Modal -->
+  <div id="bug-modal" class="fixed inset-0 bg-black/70 flex items-end sm:items-center justify-center z-50 modal-backdrop hidden" onclick="closeBugReportModal()">
+    <div class="bg-slate-800 rounded-t-2xl sm:rounded-xl w-full sm:max-w-md sm:m-4 modal-content" onclick="event.stopPropagation()">
+      <!-- Drag handle for mobile -->
+      <div class="sm:hidden flex justify-center pt-3 pb-1">
+        <div class="w-10 h-1 bg-slate-600 rounded-full"></div>
+      </div>
+      <div class="p-4 sm:p-6">
+        <h2 class="text-lg sm:text-xl font-semibold text-white mb-2">🐛 Report a Bug</h2>
+        <p class="text-slate-400 text-sm mb-4">Found something broken? Let us know!</p>
+        <form onsubmit="submitBugReport(event)">
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-slate-300 mb-2">What happened?</label>
+            <textarea id="bug-description" rows="4" placeholder="Describe what went wrong..." class="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"></textarea>
+          </div>
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-slate-300 mb-2">Your contact (optional)</label>
+            <input type="text" id="bug-contact" placeholder="Email or name so we can follow up..." class="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent">
+          </div>
+          <div class="flex gap-3 safe-bottom">
+            <button type="button" onclick="closeBugReportModal()" class="flex-1 px-4 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-xl transition-colors touch-active font-medium">Cancel</button>
+            <button type="submit" class="flex-1 px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl transition-colors touch-active font-medium">Submit Bug</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bug List Modal (Admin) -->
+  <div id="bug-list-modal" class="fixed inset-0 bg-black/70 flex items-end sm:items-center justify-center z-50 modal-backdrop hidden" onclick="closeBugListModal()">
+    <div class="bg-slate-800 rounded-t-2xl sm:rounded-xl w-full sm:max-w-2xl sm:m-4 modal-content modal-mobile-full max-h-[95vh] sm:max-h-[90vh] flex flex-col" onclick="event.stopPropagation()">
+      <!-- Drag handle for mobile -->
+      <div class="sm:hidden flex justify-center pt-3 pb-1">
+        <div class="w-10 h-1 bg-slate-600 rounded-full"></div>
+      </div>
+      <div class="p-4 sm:p-6 flex flex-col h-full">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-lg sm:text-xl font-semibold text-white">📋 Bug Reports</h2>
+          <button onclick="closeBugListModal()" class="p-2 text-slate-400 hover:text-white transition-colors rounded-lg">✕</button>
+        </div>
+        <div id="bug-list-content" class="flex-1 overflow-y-auto space-y-3 safe-bottom"></div>
       </div>
     </div>
   </div>
@@ -529,10 +577,22 @@
               <div class="text-center py-16">
                 <div class="text-5xl mb-4">${STAGES[activeIndex].emoji}</div>
                 <p class="text-slate-400 text-lg">No ideas in this stage</p>
-                <p class="text-slate-500 text-sm mt-2">${state.activeStage === 'new' ? 'Tap + to submit a new idea!' : 'Move ideas from previous stages'}</p>
+                <p class="text-slate-500 text-sm mt-2">${state.activeStage === 'new' ? 'Be the first to submit an idea!' : 'Move ideas from previous stages'}</p>
+                ${state.activeStage === 'new' ? `
+                  <button onclick="openSubmitModal()" class="mt-6 px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold rounded-xl transition-all touch-active shadow-lg shadow-blue-500/25">
+                    💡 Submit Your Idea
+                  </button>
+                ` : ''}
               </div>
             ` : `
               <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                ${state.activeStage === 'new' ? `
+                  <div onclick="openSubmitModal()" class="bg-gradient-to-br from-blue-600/20 to-purple-600/20 border-2 border-dashed border-blue-500/50 rounded-xl p-4 cursor-pointer hover:border-blue-400 transition-all touch-active min-h-[100px] flex flex-col items-center justify-center text-center">
+                    <div class="text-3xl mb-2">💡</div>
+                    <p class="text-blue-400 font-medium">Submit New Idea</p>
+                    <p class="text-slate-500 text-xs mt-1">Share your thoughts</p>
+                  </div>
+                ` : ''}
                 ${stageIdeas.sort((a, b) => {
                   // Blocked ideas first
                   if (a.blocked !== b.blocked) return b.blocked - a.blocked;
@@ -971,6 +1031,137 @@
       document.body.style.overflow = '';
     }
 
+    function openBugReportModal() {
+      document.getElementById('bug-description').value = '';
+      document.getElementById('bug-contact').value = '';
+      document.getElementById('bug-modal').classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+      setTimeout(() => document.getElementById('bug-description').focus(), 100);
+    }
+
+    function closeBugReportModal() {
+      document.getElementById('bug-modal').classList.add('hidden');
+      document.body.style.overflow = '';
+    }
+
+    async function submitBugReport(e) {
+      e.preventDefault();
+      const description = document.getElementById('bug-description').value.trim();
+      const contact = document.getElementById('bug-contact').value.trim();
+
+      if (!description) {
+        showToast('Please describe the bug');
+        return;
+      }
+
+      try {
+        await db.collection('bugs').add({
+          description,
+          contact: contact || null,
+          createdAt: Date.now(),
+          userAgent: navigator.userAgent,
+          url: window.location.href,
+          resolved: false
+        });
+        closeBugReportModal();
+        showToast('Bug report submitted. Thank you!');
+      } catch (err) {
+        console.error('Error submitting bug:', err);
+        showToast('Failed to submit bug report');
+      }
+    }
+
+    // Bug List (Admin)
+    let bugReports = [];
+    let bugsUnsubscribe = null;
+
+    function openBugListModal() {
+      if (!state.isAdmin) return;
+      document.getElementById('bug-list-modal').classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+      loadBugReports();
+    }
+
+    function closeBugListModal() {
+      document.getElementById('bug-list-modal').classList.add('hidden');
+      document.body.style.overflow = '';
+      if (bugsUnsubscribe) {
+        bugsUnsubscribe();
+        bugsUnsubscribe = null;
+      }
+    }
+
+    function loadBugReports() {
+      const content = document.getElementById('bug-list-content');
+      content.innerHTML = '<div class="text-center text-slate-400 py-8">Loading bug reports...</div>';
+
+      bugsUnsubscribe = db.collection('bugs').orderBy('createdAt', 'desc').onSnapshot(snapshot => {
+        bugReports = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        renderBugList();
+      }, err => {
+        console.error('Error loading bugs:', err);
+        content.innerHTML = '<div class="text-center text-red-400 py-8">Failed to load bug reports</div>';
+      });
+    }
+
+    function renderBugList() {
+      const content = document.getElementById('bug-list-content');
+
+      if (bugReports.length === 0) {
+        content.innerHTML = '<div class="text-center text-slate-400 py-8">🎉 No bug reports! Everything is working great.</div>';
+        return;
+      }
+
+      const unresolvedCount = bugReports.filter(b => !b.resolved).length;
+
+      content.innerHTML = `
+        <div class="text-sm text-slate-400 mb-3">${unresolvedCount} unresolved of ${bugReports.length} total</div>
+        ${bugReports.map(bug => `
+          <div class="bg-slate-700/50 rounded-xl p-4 ${bug.resolved ? 'opacity-60' : ''}">
+            <div class="flex items-start justify-between gap-3">
+              <div class="flex-1 min-w-0">
+                <p class="text-white text-sm whitespace-pre-wrap break-words">${escapeHtml(bug.description)}</p>
+                <div class="flex flex-wrap items-center gap-2 mt-2 text-xs text-slate-400">
+                  <span>${new Date(bug.createdAt).toLocaleDateString()} ${new Date(bug.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                  ${bug.contact ? `<span class="bg-slate-600 px-2 py-0.5 rounded">📧 ${escapeHtml(bug.contact)}</span>` : ''}
+                  ${bug.resolved ? '<span class="bg-green-600/30 text-green-400 px-2 py-0.5 rounded">✓ Resolved</span>' : '<span class="bg-red-600/30 text-red-400 px-2 py-0.5 rounded">Open</span>'}
+                </div>
+              </div>
+              <div class="flex items-center gap-1 flex-shrink-0">
+                <button onclick="toggleBugResolved('${bug.id}', ${!bug.resolved})" class="p-2 ${bug.resolved ? 'text-amber-400 hover:text-amber-300' : 'text-green-400 hover:text-green-300'} transition-colors rounded-lg" title="${bug.resolved ? 'Mark as open' : 'Mark as resolved'}">
+                  ${bug.resolved ? '↩️' : '✓'}
+                </button>
+                <button onclick="deleteBug('${bug.id}')" class="p-2 text-red-400 hover:text-red-300 transition-colors rounded-lg" title="Delete bug">
+                  🗑️
+                </button>
+              </div>
+            </div>
+          </div>
+        `).join('')}
+      `;
+    }
+
+    async function toggleBugResolved(bugId, resolved) {
+      try {
+        await db.collection('bugs').doc(bugId).update({ resolved });
+        showToast(resolved ? 'Bug marked as resolved' : 'Bug marked as open');
+      } catch (err) {
+        console.error('Error updating bug:', err);
+        showToast('Failed to update bug');
+      }
+    }
+
+    async function deleteBug(bugId) {
+      if (!confirm('Delete this bug report?')) return;
+      try {
+        await db.collection('bugs').doc(bugId).delete();
+        showToast('Bug report deleted');
+      } catch (err) {
+        console.error('Error deleting bug:', err);
+        showToast('Failed to delete bug');
+      }
+    }
+
     function toggleAdmin() {
       if (state.isAdmin) {
         state.isAdmin = false;
@@ -1001,12 +1192,15 @@
 
     function updateAdminButton() {
       const btn = document.getElementById('btn-admin');
+      const bugListBtn = document.getElementById('btn-bug-list');
       if (state.isAdmin) {
         btn.innerHTML = '<span class="sm:hidden">🔓</span><span class="hidden sm:inline">Exit Admin</span>';
         btn.className = 'px-2.5 py-2 sm:px-3 sm:py-2 bg-red-600/20 active:bg-red-600/30 text-red-400 text-xs sm:text-sm font-medium rounded-lg transition-colors border border-red-600/30 touch-active';
+        bugListBtn.classList.remove('hidden');
       } else {
         btn.innerHTML = '<span class="sm:hidden">⚙️</span><span class="hidden sm:inline">Admin</span>';
         btn.className = 'px-2.5 py-2 sm:px-3 sm:py-2 bg-slate-700 active:bg-slate-600 text-slate-300 text-xs sm:text-sm font-medium rounded-lg transition-colors touch-active';
+        bugListBtn.classList.add('hidden');
       }
     }
 

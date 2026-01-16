@@ -1,4 +1,4 @@
-const CACHE_NAME = 'local478-ideas-v3';
+const CACHE_NAME = 'local478-ideas-v5';
 const STATIC_ASSETS = [
   './',
   './index.html',
