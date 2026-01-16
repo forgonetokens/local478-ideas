@@ -481,7 +481,7 @@
       return `
         <div class="flex-shrink-0 bg-slate-900 border-b border-slate-700">
           <div class="px-2 sm:px-4">
-            <div class="flex items-center gap-1 overflow-x-auto py-2 scrollbar-hide scroll-container">
+            <div class="flex items-center justify-center gap-2 sm:gap-4 py-2 sm:py-3">
               ${STAGES.map(stage => {
                 const count = state.ideas.filter(i => i.stage === stage.id).length;
                 const blocked = state.ideas.filter(i => i.stage === stage.id && i.blocked).length;
