@@ -218,6 +218,11 @@
         </div>
       </header>
 
+      <!-- Offline Banner -->
+      <div id="offline-banner" class="hidden bg-amber-600 text-white text-center py-2 px-4 text-sm font-medium flex-shrink-0">
+        <span>📴 You're offline. Changes will sync when connected.</span>
+      </div>
+
       <!-- Main Content -->
       <main id="content" class="flex-1 flex flex-col overflow-hidden"></main>
     </div>
@@ -310,20 +315,60 @@
       selectedIdea: null,
       selectedCategories: [],
       selectedCategoryView: null,
-      isRefreshing: false
+      isRefreshing: false,
+      isOffline: !navigator.onLine
     };
 
+    // Local storage cache key
+    const CACHE_KEY = 'local478_data_cache';
+
     // ==================== API FUNCTIONS ====================
+    function getCachedData() {
+      try {
+        const cached = localStorage.getItem(CACHE_KEY);
+        if (cached) return JSON.parse(cached);
+      } catch (e) {}
+      return null;
+    }
+
+    function setCachedData(data) {
+      try {
+        localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+      } catch (e) {
+        console.warn('Failed to cache data:', e);
+      }
+    }
+
     async function fetchData() {
-      const response = await fetch(`https://api.jsonbin.io/v3/b/${CONFIG.JSONBIN_BIN_ID}/latest`, {
-        headers: { 'X-Access-Key': CONFIG.JSONBIN_API_KEY }
-      });
-      if (!response.ok) throw new Error(`Failed to fetch: ${response.status}`);
-      const data = await response.json();
-      return data.record;
+      try {
+        const response = await fetch(`https://api.jsonbin.io/v3/b/${CONFIG.JSONBIN_BIN_ID}/latest`, {
+          headers: { 'X-Access-Key': CONFIG.JSONBIN_API_KEY }
+        });
+        if (!response.ok) throw new Error(`Failed to fetch: ${response.status}`);
+        const data = await response.json();
+        // Cache for offline use
+        setCachedData(data.record);
+        return data.record;
+      } catch (err) {
+        // Try to use cached data when offline
+        const cached = getCachedData();
+        if (cached) {
+          console.log('Using cached data (offline)');
+          return cached;
+        }
+        throw err;
+      }
     }
 
     async function saveData() {
+      // Always cache locally first
+      setCachedData({ ideas: state.ideas, categories: state.categories });
+
+      if (state.isOffline) {
+        showToast('Saved locally. Will sync when online.');
+        return;
+      }
+
       const response = await fetch(`https://api.jsonbin.io/v3/b/${CONFIG.JSONBIN_BIN_ID}`, {
         method: 'PUT',
         headers: {
@@ -333,6 +378,26 @@
         body: JSON.stringify({ ideas: state.ideas, categories: state.categories })
       });
       if (!response.ok) throw new Error(`Failed to save: ${response.status}`);
+    }
+
+    async function syncData() {
+      if (state.isOffline) return;
+      const cached = getCachedData();
+      if (!cached) return;
+
+      try {
+        await fetch(`https://api.jsonbin.io/v3/b/${CONFIG.JSONBIN_BIN_ID}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Access-Key': CONFIG.JSONBIN_API_KEY
+          },
+          body: JSON.stringify(cached)
+        });
+        showToast('Data synced successfully!');
+      } catch (err) {
+        console.error('Sync failed:', err);
+      }
     }
 
     async function refreshData() {
@@ -1178,8 +1243,43 @@
       }
     });
 
+    // ==================== OFFLINE HANDLING ====================
+    function updateOfflineStatus() {
+      state.isOffline = !navigator.onLine;
+      const banner = document.getElementById('offline-banner');
+      if (state.isOffline) {
+        banner.classList.remove('hidden');
+      } else {
+        banner.classList.add('hidden');
+        // Sync data when coming back online
+        syncData();
+      }
+    }
+
+    window.addEventListener('online', updateOfflineStatus);
+    window.addEventListener('offline', updateOfflineStatus);
+
+    // ==================== SERVICE WORKER ====================
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js')
+        .then(reg => {
+          console.log('Service Worker registered:', reg.scope);
+          // Check for updates
+          reg.addEventListener('updatefound', () => {
+            const newWorker = reg.installing;
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                showToast('Update available! Refresh to update.');
+              }
+            });
+          });
+        })
+        .catch(err => console.log('SW registration failed:', err));
+    }
+
     // Initialize
     init();
+    updateOfflineStatus();
   </script>
 </body>
 </html>
