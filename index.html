@@ -2,11 +2,17 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Local 478 Ideas Pipeline</title>
   <meta name="description" content="IATSE Local 478 Ideas Pipeline - Collaborative idea tracking board">
   <meta name="theme-color" content="#0f172a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="478 Ideas">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="format-detection" content="telephone=no">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💡</text></svg>">
+  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%230f172a' width='100' height='100'/><text y='.9em' font-size='90' x='5'>💡</text></svg>">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -23,12 +29,46 @@
     }
   </script>
   <style>
-    * { box-sizing: border-box; }
-    body { background-color: #0f172a; color: #f1f5f9; font-family: system-ui, -apple-system, sans-serif; }
-    ::-webkit-scrollbar { width: 8px; height: 8px; }
-    ::-webkit-scrollbar-track { background: #1e293b; }
-    ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+    }
+    html {
+      height: 100%;
+      overflow: hidden;
+    }
+    body {
+      height: 100%;
+      overflow: hidden;
+      background-color: #0f172a;
+      color: #f1f5f9;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+      padding-left: env(safe-area-inset-left);
+      padding-right: env(safe-area-inset-right);
+    }
+    #app {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Prevent iOS rubber-banding on main scroll areas */
+    .scroll-container {
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+    }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
     ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+    /* Animations */
     .modal-backdrop { animation: fadeIn 150ms ease-out; }
     .modal-content { animation: slideUp 200ms ease-out; }
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -36,12 +76,65 @@
     @keyframes successPulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
     .success-pulse { animation: successPulse 300ms ease-out; }
     .blocked-glow { box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.5), 0 0 20px rgba(239, 68, 68, 0.2); }
+
+    /* Swipe indicator */
+    @keyframes swipeHint {
+      0%, 100% { transform: translateX(0); opacity: 0.5; }
+      50% { transform: translateX(-10px); opacity: 1; }
+    }
+    .swipe-hint { animation: swipeHint 2s ease-in-out infinite; }
+
+    /* Pull to refresh */
+    .pull-indicator {
+      transition: transform 0.2s ease-out;
+    }
+    .pulling .pull-indicator {
+      transform: rotate(180deg);
+    }
+
+    /* Text utilities */
     .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
     .scrollbar-hide::-webkit-scrollbar { display: none; }
     .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+    /* Touch-friendly inputs */
+    input, textarea, button, select {
+      font-size: 16px; /* Prevents iOS zoom */
+      touch-action: manipulation;
+    }
+
+    /* Active states for touch feedback */
+    .touch-active:active {
+      transform: scale(0.98);
+      opacity: 0.9;
+    }
+
+    /* Modal full-screen on mobile */
+    @media (max-width: 640px) {
+      .modal-mobile-full {
+        margin: 0 !important;
+        border-radius: 0 !important;
+        min-height: 100vh;
+        max-height: 100vh;
+      }
+      .modal-mobile-full .modal-scroll {
+        max-height: calc(100vh - 200px) !important;
+      }
+    }
+
+    /* Stage tabs mobile optimization */
+    @media (max-width: 480px) {
+      .stage-tab-label { display: none; }
+      .stage-tab { padding: 0.5rem 0.75rem !important; }
+    }
+
+    /* Safe area bottom padding for fixed elements */
+    .safe-bottom {
+      padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+    }
   </style>
 </head>
-<body class="min-h-screen">
+<body>
   <!-- ==================== CONFIGURATION ==================== -->
   <script>
     const CONFIG = {
@@ -51,20 +144,20 @@
     };
 
     const STAGES = [
-      { id: 'new', label: 'New Idea', emoji: '💡', color: '#3B82F6' },
+      { id: 'new', label: 'New', emoji: '💡', color: '#3B82F6' },
       { id: 'research', label: 'Research', emoji: '🔍', color: '#8B5CF6' },
-      { id: 'poc', label: 'Proof of Concept', emoji: '🧪', color: '#F59E0B' },
-      { id: 'codebase', label: 'Codebase Built', emoji: '💻', color: '#10B981' },
-      { id: 'prototype', label: 'Working Prototype', emoji: '🚀', color: '#06B6D4' },
-      { id: 'testing', label: 'Tested & Ready', emoji: '✅', color: '#84CC16' },
-      { id: 'deployed', label: 'Deployed', emoji: '🎉', color: '#22C55E' },
+      { id: 'poc', label: 'POC', emoji: '🧪', color: '#F59E0B' },
+      { id: 'codebase', label: 'Code', emoji: '💻', color: '#10B981' },
+      { id: 'prototype', label: 'Prototype', emoji: '🚀', color: '#06B6D4' },
+      { id: 'testing', label: 'Testing', emoji: '✅', color: '#84CC16' },
+      { id: 'deployed', label: 'Live', emoji: '🎉', color: '#22C55E' },
     ];
   </script>
 
   <!-- ==================== APP CONTAINER ==================== -->
-  <div id="app" class="min-h-screen flex flex-col">
+  <div id="app">
     <!-- Loading State -->
-    <div id="loading" class="min-h-screen flex items-center justify-center">
+    <div id="loading" class="flex-1 flex items-center justify-center">
       <div class="text-center">
         <div class="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
         <p class="text-slate-400">Loading ideas...</p>
@@ -72,113 +165,134 @@
     </div>
 
     <!-- Error State -->
-    <div id="error" class="min-h-screen flex items-center justify-center p-4 hidden">
+    <div id="error" class="flex-1 flex items-center justify-center p-4 hidden">
       <div class="text-center max-w-md">
-        <div class="text-4xl mb-4">⚠️</div>
+        <div class="text-5xl mb-4">⚠️</div>
         <h2 class="text-xl font-semibold text-white mb-2">Connection Error</h2>
-        <p class="text-slate-400 mb-4">Unable to connect to the database. Please check your JSONBin configuration.</p>
-        <p id="error-message" class="text-sm text-red-400 bg-red-500/10 rounded-lg p-3"></p>
+        <p class="text-slate-400 mb-4">Unable to connect to the database.</p>
+        <p id="error-message" class="text-sm text-red-400 bg-red-500/10 rounded-lg p-3 mb-4"></p>
+        <button onclick="location.reload()" class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg touch-active">
+          Try Again
+        </button>
       </div>
     </div>
 
     <!-- Main App (hidden until loaded) -->
-    <div id="main-app" class="min-h-screen flex flex-col hidden">
+    <div id="main-app" class="flex-1 flex flex-col overflow-hidden hidden">
       <!-- Header -->
-      <header class="sticky top-0 z-40 bg-slate-900/95 backdrop-blur border-b border-slate-700">
-        <div class="max-w-7xl mx-auto px-4 py-3">
-          <div class="flex items-center justify-between gap-4">
+      <header class="flex-shrink-0 bg-slate-900 border-b border-slate-700 z-40">
+        <div class="px-3 py-2 sm:px-4 sm:py-3">
+          <div class="flex items-center justify-between gap-2">
             <!-- Logo -->
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center font-bold text-white text-sm">478</div>
-              <div class="hidden sm:block">
-                <h1 class="text-lg font-semibold text-white">Local 478</h1>
-                <p class="text-xs text-slate-400">Ideas Pipeline</p>
+            <div class="flex items-center gap-2 flex-shrink-0">
+              <div class="w-9 h-9 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center font-bold text-white text-xs sm:text-sm">478</div>
+              <div class="hidden xs:block sm:block">
+                <h1 class="text-sm sm:text-lg font-semibold text-white leading-tight">Local 478</h1>
+                <p class="text-[10px] sm:text-xs text-slate-400 leading-tight">Ideas Pipeline</p>
               </div>
             </div>
 
             <!-- View Toggle -->
-            <div class="flex items-center gap-1 bg-slate-800 rounded-lg p-1">
-              <button onclick="setView('pipeline')" id="btn-pipeline" class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors bg-blue-600 text-white">Pipeline</button>
-              <button onclick="setView('category')" id="btn-category" class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors text-slate-400 hover:text-white">Categories</button>
+            <div class="flex items-center bg-slate-800 rounded-lg p-0.5 sm:p-1">
+              <button onclick="setView('pipeline')" id="btn-pipeline" class="px-2 py-1.5 sm:px-3 sm:py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors bg-blue-600 text-white touch-active">Pipeline</button>
+              <button onclick="setView('category')" id="btn-category" class="px-2 py-1.5 sm:px-3 sm:py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors text-slate-400 touch-active">Categories</button>
             </div>
 
             <!-- Actions -->
-            <div class="flex items-center gap-2">
-              <button onclick="refreshData()" class="p-2 text-slate-400 hover:text-white transition-colors" title="Refresh">
+            <div class="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+              <button onclick="refreshData()" id="refresh-btn" class="p-2.5 sm:p-2 text-slate-400 hover:text-white transition-colors rounded-lg touch-active" title="Refresh">
                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
               </button>
-              <button onclick="openSubmitModal()" class="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">+ Submit</button>
-              <button onclick="toggleAdmin()" id="btn-admin" class="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm font-medium rounded-lg transition-colors">Admin</button>
+              <button onclick="openSubmitModal()" class="px-2.5 py-2 sm:px-3 sm:py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-medium rounded-lg transition-colors touch-active">
+                <span class="sm:hidden">+</span>
+                <span class="hidden sm:inline">+ Submit</span>
+              </button>
+              <button onclick="toggleAdmin()" id="btn-admin" class="px-2.5 py-2 sm:px-3 sm:py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs sm:text-sm font-medium rounded-lg transition-colors touch-active">
+                <span class="sm:hidden">⚙️</span>
+                <span class="hidden sm:inline">Admin</span>
+              </button>
             </div>
           </div>
         </div>
       </header>
 
       <!-- Main Content -->
-      <main id="content" class="flex-1 flex flex-col"></main>
+      <main id="content" class="flex-1 flex flex-col overflow-hidden"></main>
     </div>
   </div>
 
   <!-- ==================== MODALS ==================== -->
 
   <!-- Submit Modal -->
-  <div id="submit-modal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 modal-backdrop hidden" onclick="closeSubmitModal()">
-    <div class="bg-slate-800 rounded-xl w-full max-w-lg p-6 modal-content" onclick="event.stopPropagation()">
-      <div id="submit-success" class="text-center py-8 hidden">
-        <div class="text-5xl mb-4">🎉</div>
+  <div id="submit-modal" class="fixed inset-0 bg-black/70 flex items-end sm:items-center justify-center z-50 modal-backdrop hidden" onclick="closeSubmitModal()">
+    <div class="bg-slate-800 rounded-t-2xl sm:rounded-xl w-full sm:max-w-lg sm:m-4 modal-content modal-mobile-full" onclick="event.stopPropagation()">
+      <div id="submit-success" class="text-center py-12 hidden">
+        <div class="text-6xl mb-4">🎉</div>
         <h2 class="text-xl font-semibold text-white">Idea Submitted!</h2>
         <p class="text-slate-400 mt-2">Thanks for your contribution</p>
       </div>
       <div id="submit-form-container">
-        <h2 class="text-xl font-semibold text-white mb-4">Submit New Idea</h2>
-        <form id="submit-form" onsubmit="submitIdea(event)">
+        <!-- Drag handle for mobile -->
+        <div class="sm:hidden flex justify-center pt-3 pb-1">
+          <div class="w-10 h-1 bg-slate-600 rounded-full"></div>
+        </div>
+        <div class="p-4 sm:p-6">
+          <h2 class="text-lg sm:text-xl font-semibold text-white mb-4">Submit New Idea</h2>
+          <form id="submit-form" onsubmit="submitIdea(event)">
+            <div class="mb-4">
+              <label class="block text-sm font-medium text-slate-300 mb-2">Your Name <span class="text-red-400">*</span></label>
+              <input type="text" id="input-submitter" required placeholder="Enter your name" autocomplete="name" class="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+            </div>
+            <div class="mb-4">
+              <label class="block text-sm font-medium text-slate-300 mb-2">Idea Title <span class="text-red-400">*</span></label>
+              <input type="text" id="input-title" required placeholder="What's your idea?" autocomplete="off" class="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+            </div>
+            <div class="mb-4">
+              <label class="block text-sm font-medium text-slate-300 mb-2">Description (optional)</label>
+              <textarea id="input-description" rows="3" placeholder="Describe your idea..." class="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"></textarea>
+            </div>
+            <div class="mb-6">
+              <label class="block text-sm font-medium text-slate-300 mb-2">Categories</label>
+              <div id="category-select" class="flex flex-wrap gap-2"></div>
+            </div>
+            <div class="flex gap-3 safe-bottom">
+              <button type="button" onclick="closeSubmitModal()" class="flex-1 px-4 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-xl transition-colors touch-active font-medium">Cancel</button>
+              <button type="submit" id="submit-btn" class="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors touch-active font-medium">Submit</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Admin Prompt Modal -->
+  <div id="admin-modal" class="fixed inset-0 bg-black/70 flex items-end sm:items-center justify-center z-50 modal-backdrop hidden" onclick="closeAdminModal()">
+    <div class="bg-slate-800 rounded-t-2xl sm:rounded-xl w-full sm:max-w-sm sm:m-4 modal-content" onclick="event.stopPropagation()">
+      <!-- Drag handle for mobile -->
+      <div class="sm:hidden flex justify-center pt-3 pb-1">
+        <div class="w-10 h-1 bg-slate-600 rounded-full"></div>
+      </div>
+      <div class="p-4 sm:p-6">
+        <h2 class="text-lg sm:text-xl font-semibold text-white mb-4">Admin Access</h2>
+        <form onsubmit="loginAdmin(event)">
           <div class="mb-4">
-            <label class="block text-sm font-medium text-slate-300 mb-2">Your Name <span class="text-red-400">*</span></label>
-            <input type="text" id="input-submitter" required placeholder="Enter your name" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+            <label class="block text-sm font-medium text-slate-300 mb-2">Enter admin code</label>
+            <input type="password" id="admin-code-input" inputmode="numeric" placeholder="Enter code..." class="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center text-xl tracking-widest">
+            <p id="admin-error" class="mt-2 text-sm text-red-400 hidden">Invalid admin code</p>
           </div>
-          <div class="mb-4">
-            <label class="block text-sm font-medium text-slate-300 mb-2">Idea Title <span class="text-red-400">*</span></label>
-            <input type="text" id="input-title" required placeholder="What's your idea?" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-          </div>
-          <div class="mb-4">
-            <label class="block text-sm font-medium text-slate-300 mb-2">Description (optional)</label>
-            <textarea id="input-description" rows="3" placeholder="Describe your idea in more detail..." class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"></textarea>
-          </div>
-          <div class="mb-6">
-            <label class="block text-sm font-medium text-slate-300 mb-2">Categories (optional)</label>
-            <div id="category-select" class="flex flex-wrap gap-2"></div>
-          </div>
-          <div class="flex gap-3">
-            <button type="button" onclick="closeSubmitModal()" class="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors">Cancel</button>
-            <button type="submit" class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">Submit Idea</button>
+          <div class="flex gap-3 safe-bottom">
+            <button type="button" onclick="closeAdminModal()" class="flex-1 px-4 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-xl transition-colors touch-active font-medium">Cancel</button>
+            <button type="submit" class="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors touch-active font-medium">Login</button>
           </div>
         </form>
       </div>
     </div>
   </div>
 
-  <!-- Admin Prompt Modal -->
-  <div id="admin-modal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 modal-backdrop hidden" onclick="closeAdminModal()">
-    <div class="bg-slate-800 rounded-xl w-full max-w-sm p-6 modal-content" onclick="event.stopPropagation()">
-      <h2 class="text-xl font-semibold text-white mb-4">Admin Access</h2>
-      <form onsubmit="loginAdmin(event)">
-        <div class="mb-4">
-          <label class="block text-sm font-medium text-slate-300 mb-2">Enter admin code</label>
-          <input type="password" id="admin-code-input" placeholder="Enter code..." class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-          <p id="admin-error" class="mt-2 text-sm text-red-400 hidden">Invalid admin code</p>
-        </div>
-        <div class="flex gap-3">
-          <button type="button" onclick="closeAdminModal()" class="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors">Cancel</button>
-          <button type="submit" class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">Login</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
   <!-- Idea Detail Modal -->
-  <div id="idea-modal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 modal-backdrop overflow-y-auto hidden" onclick="closeIdeaModal()">
-    <div class="bg-slate-800 rounded-xl w-full max-w-2xl my-8 modal-content" onclick="event.stopPropagation()">
-      <div id="idea-modal-content"></div>
+  <div id="idea-modal" class="fixed inset-0 bg-black/70 flex items-end sm:items-center justify-center z-50 modal-backdrop hidden" onclick="closeIdeaModal()">
+    <div class="bg-slate-800 rounded-t-2xl sm:rounded-xl w-full sm:max-w-2xl sm:m-4 modal-content modal-mobile-full max-h-[95vh] sm:max-h-[90vh] flex flex-col" onclick="event.stopPropagation()">
+      <div id="idea-modal-content" class="flex-1 overflow-hidden flex flex-col"></div>
     </div>
   </div>
 
@@ -193,7 +307,8 @@
       isAdmin: localStorage.getItem('local478_admin') === 'true',
       selectedIdea: null,
       selectedCategories: [],
-      selectedCategoryView: null
+      selectedCategoryView: null,
+      isRefreshing: false
     };
 
     // ==================== API FUNCTIONS ====================
@@ -219,6 +334,10 @@
     }
 
     async function refreshData() {
+      if (state.isRefreshing) return;
+      state.isRefreshing = true;
+      const btn = document.getElementById('refresh-btn');
+      btn.classList.add('animate-spin');
       try {
         const data = await fetchData();
         state.ideas = data.ideas || [];
@@ -226,8 +345,25 @@
         render();
       } catch (err) {
         console.error('Refresh failed:', err);
-        alert('Failed to refresh data. Please try again.');
+        showToast('Failed to refresh. Try again.');
+      } finally {
+        state.isRefreshing = false;
+        btn.classList.remove('animate-spin');
       }
+    }
+
+    // Simple toast notification
+    function showToast(message) {
+      const existing = document.getElementById('toast');
+      if (existing) existing.remove();
+
+      const toast = document.createElement('div');
+      toast.id = 'toast';
+      toast.className = 'fixed bottom-20 left-1/2 -translate-x-1/2 bg-slate-700 text-white px-4 py-2 rounded-full text-sm z-50 shadow-lg';
+      toast.textContent = message;
+      document.body.appendChild(toast);
+
+      setTimeout(() => toast.remove(), 3000);
     }
 
     // ==================== INITIALIZATION ====================
@@ -254,17 +390,22 @@
       state.view = view;
       state.selectedCategoryView = null;
       document.getElementById('btn-pipeline').className = view === 'pipeline'
-        ? 'px-3 py-1.5 rounded-md text-sm font-medium transition-colors bg-blue-600 text-white'
-        : 'px-3 py-1.5 rounded-md text-sm font-medium transition-colors text-slate-400 hover:text-white';
+        ? 'px-2 py-1.5 sm:px-3 sm:py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors bg-blue-600 text-white touch-active'
+        : 'px-2 py-1.5 sm:px-3 sm:py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors text-slate-400 touch-active';
       document.getElementById('btn-category').className = view === 'category'
-        ? 'px-3 py-1.5 rounded-md text-sm font-medium transition-colors bg-blue-600 text-white'
-        : 'px-3 py-1.5 rounded-md text-sm font-medium transition-colors text-slate-400 hover:text-white';
+        ? 'px-2 py-1.5 sm:px-3 sm:py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors bg-blue-600 text-white touch-active'
+        : 'px-2 py-1.5 sm:px-3 sm:py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors text-slate-400 touch-active';
       render();
     }
 
     function setActiveStage(stageId) {
       state.activeStage = stageId;
       render();
+      // Scroll active tab into view
+      setTimeout(() => {
+        const activeTab = document.querySelector(`[data-stage="${stageId}"]`);
+        if (activeTab) activeTab.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      }, 10);
     }
 
     // ==================== RENDER FUNCTIONS ====================
@@ -282,45 +423,49 @@
       const activeIndex = STAGES.findIndex(s => s.id === state.activeStage);
 
       return `
-        <div class="sticky top-0 z-30 bg-slate-900 border-b border-slate-700">
-          <div class="max-w-7xl mx-auto px-4">
-            <div class="flex items-center gap-2 overflow-x-auto py-3 scrollbar-hide">
+        <div class="flex-shrink-0 bg-slate-900 border-b border-slate-700">
+          <div class="px-2 sm:px-4">
+            <div class="flex items-center gap-1 sm:gap-2 overflow-x-auto py-2 sm:py-3 scrollbar-hide scroll-container">
               ${STAGES.map(stage => {
                 const count = state.ideas.filter(i => i.stage === stage.id).length;
                 const blocked = state.ideas.filter(i => i.stage === stage.id && i.blocked).length;
                 const isActive = state.activeStage === stage.id;
                 return `
-                  <button onclick="setActiveStage('${stage.id}')" class="flex items-center gap-2 px-4 py-2 rounded-lg whitespace-nowrap transition-all ${isActive ? 'text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}" style="${isActive ? `background-color: ${stage.color}30; color: ${stage.color}` : ''}">
-                    <span>${stage.emoji}</span>
-                    <span class="font-medium">${stage.label}</span>
-                    <span class="px-2 py-0.5 rounded-full text-xs ${isActive ? 'bg-white/20' : 'bg-slate-700'}">${count}</span>
-                    ${blocked > 0 ? `<span class="text-red-400 text-sm">🚩${blocked}</span>` : ''}
+                  <button data-stage="${stage.id}" onclick="setActiveStage('${stage.id}')" class="stage-tab flex items-center gap-1 sm:gap-2 px-2.5 py-2 sm:px-4 sm:py-2 rounded-lg whitespace-nowrap transition-all touch-active min-h-[44px] ${isActive ? 'text-white' : 'text-slate-400'}" style="${isActive ? `background-color: ${stage.color}30; color: ${stage.color}` : ''}">
+                    <span class="text-base sm:text-lg">${stage.emoji}</span>
+                    <span class="stage-tab-label font-medium text-sm">${stage.label}</span>
+                    <span class="px-1.5 py-0.5 rounded-full text-xs ${isActive ? 'bg-white/20' : 'bg-slate-700'}">${count}</span>
+                    ${blocked > 0 ? `<span class="text-red-400 text-xs">🚩</span>` : ''}
                   </button>
                 `;
               }).join('')}
             </div>
           </div>
         </div>
-        <div class="hidden md:flex items-center justify-between px-4 py-2 max-w-7xl mx-auto w-full">
-          <button onclick="navigateStage(-1)" ${activeIndex === 0 ? 'disabled' : ''} class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-slate-400 hover:text-white hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+
+        <!-- Navigation Arrows (Desktop) -->
+        <div class="hidden md:flex items-center justify-between px-4 py-2 flex-shrink-0 bg-slate-900/50">
+          <button onclick="navigateStage(-1)" ${activeIndex === 0 ? 'disabled' : ''} class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-400 hover:text-white hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors touch-active min-h-[44px]">
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
             ${activeIndex > 0 ? STAGES[activeIndex - 1].label : ''}
           </button>
-          <button onclick="navigateStage(1)" ${activeIndex === STAGES.length - 1 ? 'disabled' : ''} class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-slate-400 hover:text-white hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+          <button onclick="navigateStage(1)" ${activeIndex === STAGES.length - 1 ? 'disabled' : ''} class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-400 hover:text-white hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors touch-active min-h-[44px]">
             ${activeIndex < STAGES.length - 1 ? STAGES[activeIndex + 1].label : ''}
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
           </button>
         </div>
-        <div class="flex-1 overflow-y-auto px-4 py-4">
-          <div class="max-w-7xl mx-auto">
+
+        <!-- Ideas Content -->
+        <div class="flex-1 overflow-y-auto scroll-container px-3 sm:px-4 py-4" id="ideas-scroll">
+          <div class="max-w-7xl mx-auto pb-4">
             ${stageIdeas.length === 0 ? `
-              <div class="text-center py-12">
-                <div class="text-4xl mb-4">${STAGES[activeIndex].emoji}</div>
-                <p class="text-slate-400">No ideas in this stage yet</p>
-                <p class="text-slate-500 text-sm mt-1">${state.activeStage === 'new' ? 'Submit a new idea to get started!' : 'Move ideas from previous stages'}</p>
+              <div class="text-center py-16">
+                <div class="text-5xl mb-4">${STAGES[activeIndex].emoji}</div>
+                <p class="text-slate-400 text-lg">No ideas in this stage</p>
+                <p class="text-slate-500 text-sm mt-2">${state.activeStage === 'new' ? 'Tap + to submit a new idea!' : 'Move ideas from previous stages'}</p>
               </div>
             ` : `
-              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                 ${stageIdeas.sort((a, b) => {
                   if (a.blocked !== b.blocked) return b.blocked - a.blocked;
                   return (b.createdAt || 0) - (a.createdAt || 0);
@@ -329,24 +474,28 @@
             `}
           </div>
         </div>
-        <div class="md:hidden text-center py-2 text-xs text-slate-500">Swipe left or right to navigate stages</div>
+
+        <!-- Mobile swipe hint -->
+        <div class="md:hidden text-center py-2 text-xs text-slate-500 flex-shrink-0 safe-bottom bg-slate-900/50">
+          <span class="swipe-hint inline-block">👈</span> Swipe to navigate stages <span class="swipe-hint inline-block" style="animation-delay: 0.5s">👉</span>
+        </div>
       `;
     }
 
     function renderCategoryView() {
       return `
-        <div class="flex-1 overflow-y-auto px-4 py-6">
-          <div class="max-w-7xl mx-auto">
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div class="flex-1 overflow-y-auto scroll-container px-3 sm:px-4 py-4">
+          <div class="max-w-7xl mx-auto pb-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               ${state.categories.map(cat => {
                 const catIdeas = state.ideas.filter(i => (i.categories || []).includes(cat.id));
                 const blocked = catIdeas.filter(i => i.blocked).length;
                 const stageBreakdown = STAGES.map(s => ({ ...s, count: catIdeas.filter(i => i.stage === s.id).length }));
                 const maxCount = Math.max(...stageBreakdown.map(s => s.count), 1);
                 return `
-                  <div onclick="openCategoryDetail('${cat.id}')" class="bg-slate-800 rounded-xl p-5 cursor-pointer hover:bg-slate-750 transition-all border-2 border-transparent hover:border-slate-600">
+                  <div onclick="openCategoryDetail('${cat.id}')" class="bg-slate-800 rounded-xl p-4 sm:p-5 cursor-pointer active:bg-slate-750 transition-all border-2 border-transparent active:border-slate-600 touch-active">
                     <div class="flex items-start justify-between mb-4">
-                      <h3 class="text-lg font-semibold" style="color: ${cat.color}">${cat.label}</h3>
+                      <h3 class="text-base sm:text-lg font-semibold" style="color: ${cat.color}">${cat.label}</h3>
                       <div class="flex items-center gap-2">
                         ${blocked > 0 ? `<span class="text-red-400 text-sm">🚩${blocked}</span>` : ''}
                         <span class="px-2 py-1 bg-slate-700 rounded-lg text-sm text-slate-300">${catIdeas.length}</span>
@@ -355,7 +504,7 @@
                     <div class="space-y-1.5">
                       ${stageBreakdown.map(stage => `
                         <div class="flex items-center gap-2">
-                          <span class="text-xs w-6">${stage.emoji}</span>
+                          <span class="text-xs w-5">${stage.emoji}</span>
                           <div class="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden">
                             <div class="h-full rounded-full transition-all" style="width: ${(stage.count / maxCount) * 100}%; background-color: ${stage.color}; min-width: ${stage.count > 0 ? '8px' : '0'}"></div>
                           </div>
@@ -367,9 +516,9 @@
                 `;
               }).join('')}
               ${state.isAdmin ? `
-                <div onclick="openAddCategoryModal()" class="bg-slate-800/50 rounded-xl p-5 cursor-pointer hover:bg-slate-800 transition-all border-2 border-dashed border-slate-600 hover:border-slate-500 flex items-center justify-center min-h-[200px]">
+                <div onclick="openAddCategoryModal()" class="bg-slate-800/50 rounded-xl p-5 cursor-pointer active:bg-slate-800 transition-all border-2 border-dashed border-slate-600 active:border-slate-500 flex items-center justify-center min-h-[180px] touch-active">
                   <div class="text-center">
-                    <div class="text-3xl mb-2">+</div>
+                    <div class="text-4xl mb-2">+</div>
                     <p class="text-slate-400">Add Category</p>
                   </div>
                 </div>
@@ -386,40 +535,41 @@
       const categoryIdeas = state.ideas.filter(i => (i.categories || []).includes(category.id));
 
       return `
-        <div class="flex flex-col h-full">
-          <div class="sticky top-0 z-30 bg-slate-900 border-b border-slate-700">
-            <div class="max-w-7xl mx-auto px-4 py-4">
-              <button onclick="state.selectedCategoryView = null; render()" class="flex items-center gap-2 text-slate-400 hover:text-white mb-3 transition-colors">
-                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
-                Back to Categories
+        <div class="flex flex-col h-full overflow-hidden">
+          <div class="flex-shrink-0 bg-slate-900 border-b border-slate-700">
+            <div class="px-3 sm:px-4 py-3 sm:py-4">
+              <button onclick="state.selectedCategoryView = null; render()" class="flex items-center gap-2 text-slate-400 active:text-white mb-3 transition-colors touch-active min-h-[44px]">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                Back
               </button>
-              <div class="flex items-center gap-3">
-                <span class="px-4 py-2 rounded-lg text-lg font-medium" style="background-color: ${category.color}30; color: ${category.color}">${category.label}</span>
+              <div class="flex items-center gap-3 flex-wrap">
+                <span class="px-4 py-2 rounded-lg text-base sm:text-lg font-medium" style="background-color: ${category.color}30; color: ${category.color}">${category.label}</span>
                 <span class="text-slate-400">${categoryIdeas.length} idea${categoryIdeas.length !== 1 ? 's' : ''}</span>
               </div>
             </div>
           </div>
-          <div class="flex-1 overflow-y-auto px-4 py-4">
-            <div class="max-w-7xl mx-auto">
+          <div class="flex-1 overflow-y-auto scroll-container px-3 sm:px-4 py-4">
+            <div class="max-w-7xl mx-auto pb-4">
               ${categoryIdeas.length === 0 ? `
-                <div class="text-center py-12"><p class="text-slate-400">No ideas in this category</p></div>
+                <div class="text-center py-16"><p class="text-slate-400">No ideas in this category</p></div>
               ` : `
                 <div class="space-y-3">
                   ${categoryIdeas.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).map(idea => {
                     const stage = STAGES.find(s => s.id === idea.stage);
                     return `
-                      <div onclick="openIdeaModal('${idea.id}')" class="bg-slate-800 rounded-lg p-4 cursor-pointer hover:bg-slate-750 transition-all flex items-center gap-4">
-                        <div class="w-2 h-12 rounded-full flex-shrink-0" style="background-color: ${stage?.color}"></div>
+                      <div onclick="openIdeaModal('${idea.id}')" class="bg-slate-800 rounded-xl p-4 cursor-pointer active:bg-slate-750 transition-all flex items-center gap-4 touch-active min-h-[72px]">
+                        <div class="w-1.5 h-12 rounded-full flex-shrink-0" style="background-color: ${stage?.color}"></div>
                         <div class="flex-1 min-w-0">
                           <div class="flex items-center gap-2 mb-1">
                             <h3 class="font-medium text-white truncate">${escapeHtml(idea.title)}</h3>
-                            ${idea.blocked ? '<span class="text-red-400">🚩</span>' : ''}
+                            ${idea.blocked ? '<span class="text-red-400 flex-shrink-0">🚩</span>' : ''}
                           </div>
-                          <div class="flex items-center gap-3 text-sm">
+                          <div class="flex items-center gap-2 sm:gap-3 text-sm flex-wrap">
                             <span class="px-2 py-0.5 rounded text-xs" style="background-color: ${stage?.color}20; color: ${stage?.color}">${stage?.emoji} ${stage?.label}</span>
-                            <span class="text-slate-500">by ${escapeHtml(idea.submitter)}</span>
+                            <span class="text-slate-500 text-xs">by ${escapeHtml(idea.submitter)}</span>
                           </div>
                         </div>
+                        <svg class="w-5 h-5 text-slate-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                       </div>
                     `;
                   }).join('')}
@@ -439,22 +589,22 @@
       const noteCount = (idea.notes || []).length;
 
       return `
-        <div onclick="openIdeaModal('${idea.id}')" class="bg-slate-800 rounded-lg p-4 cursor-pointer hover:bg-slate-750 transition-all border-l-4 ${idea.blocked ? 'blocked-glow' : ''}" style="border-left-color: ${stage.color}">
+        <div onclick="openIdeaModal('${idea.id}')" class="bg-slate-800 rounded-xl p-4 cursor-pointer active:bg-slate-750 transition-all border-l-4 touch-active min-h-[100px] ${idea.blocked ? 'blocked-glow' : ''}" style="border-left-color: ${stage.color}">
           <div class="flex items-start justify-between gap-2 mb-2">
-            <h3 class="font-medium text-white line-clamp-2">${escapeHtml(idea.title)}</h3>
+            <h3 class="font-medium text-white line-clamp-2 text-sm sm:text-base">${escapeHtml(idea.title)}</h3>
             <div class="flex items-center gap-1 flex-shrink-0">
-              ${idea.blocked ? '<span class="text-red-400" title="Blocked">🚩</span>' : ''}
-              ${noteCount > 0 ? `<span class="text-slate-400 text-sm" title="${noteCount} notes">📝 ${noteCount}</span>` : ''}
+              ${idea.blocked ? '<span class="text-red-400">🚩</span>' : ''}
+              ${noteCount > 0 ? `<span class="text-slate-400 text-xs">📝${noteCount}</span>` : ''}
             </div>
           </div>
-          ${idea.description ? `<p class="text-slate-400 text-sm line-clamp-2 mb-3">${escapeHtml(idea.description)}</p>` : ''}
+          ${idea.description ? `<p class="text-slate-400 text-xs sm:text-sm line-clamp-2 mb-3">${escapeHtml(idea.description)}</p>` : ''}
           ${ideaCategories.length > 0 ? `
             <div class="flex flex-wrap gap-1.5 mb-3">
-              ${displayCategories.map(cat => `<span class="px-2 py-0.5 rounded-full text-xs font-medium" style="background-color: ${cat.color}20; color: ${cat.color}">${cat.label}</span>`).join('')}
-              ${remainingCount > 0 ? `<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-slate-700 text-slate-400">+${remainingCount}</span>` : ''}
+              ${displayCategories.map(cat => `<span class="px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-medium" style="background-color: ${cat.color}20; color: ${cat.color}">${cat.label}</span>`).join('')}
+              ${remainingCount > 0 ? `<span class="px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-medium bg-slate-700 text-slate-400">+${remainingCount}</span>` : ''}
             </div>
           ` : ''}
-          <div class="flex items-center justify-between text-xs text-slate-500">
+          <div class="flex items-center justify-between text-[10px] sm:text-xs text-slate-500">
             <span>by ${escapeHtml(idea.submitter)}</span>
             ${idea.createdAt ? `<span>${new Date(idea.createdAt).toLocaleDateString()}</span>` : ''}
           </div>
@@ -470,16 +620,18 @@
       document.getElementById('submit-form-container').classList.remove('hidden');
       renderCategorySelect();
       document.getElementById('submit-modal').classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
     }
 
     function closeSubmitModal() {
       document.getElementById('submit-modal').classList.add('hidden');
+      document.body.style.overflow = '';
     }
 
     function renderCategorySelect() {
       const container = document.getElementById('category-select');
       container.innerHTML = state.categories.map(cat => `
-        <button type="button" onclick="toggleCategorySelect('${cat.id}')" class="px-3 py-1.5 rounded-full text-sm font-medium transition-all ${state.selectedCategories.includes(cat.id) ? 'ring-2 ring-offset-2 ring-offset-slate-800' : 'opacity-60 hover:opacity-100'}" style="background-color: ${cat.color}30; color: ${cat.color}; ${state.selectedCategories.includes(cat.id) ? `ring-color: ${cat.color}` : ''}">${cat.label}</button>
+        <button type="button" onclick="toggleCategorySelect('${cat.id}')" class="px-3 py-2 rounded-full text-sm font-medium transition-all touch-active min-h-[40px] ${state.selectedCategories.includes(cat.id) ? 'ring-2 ring-offset-2 ring-offset-slate-800' : 'opacity-60'}" style="background-color: ${cat.color}30; color: ${cat.color};">${cat.label}</button>
       `).join('');
     }
 
@@ -494,11 +646,19 @@
 
     async function submitIdea(e) {
       e.preventDefault();
+      const btn = document.getElementById('submit-btn');
+      btn.disabled = true;
+      btn.textContent = 'Submitting...';
+
       const submitter = document.getElementById('input-submitter').value.trim();
       const title = document.getElementById('input-title').value.trim();
       const description = document.getElementById('input-description').value.trim();
 
-      if (!submitter || !title) return;
+      if (!submitter || !title) {
+        btn.disabled = false;
+        btn.textContent = 'Submit';
+        return;
+      }
 
       const newIdea = {
         id: generateId(),
@@ -526,7 +686,10 @@
         }, 1500);
       } catch (err) {
         state.ideas.pop();
-        alert('Failed to submit idea. Please try again.');
+        showToast('Failed to submit. Try again.');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Submit';
       }
     }
 
@@ -535,10 +698,12 @@
       if (!state.selectedIdea) return;
       renderIdeaModal();
       document.getElementById('idea-modal').classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
     }
 
     function closeIdeaModal() {
       document.getElementById('idea-modal').classList.add('hidden');
+      document.body.style.overflow = '';
       state.selectedIdea = null;
     }
 
@@ -551,40 +716,50 @@
       const availableCategories = state.categories.filter(c => !(idea.categories || []).includes(c.id));
 
       document.getElementById('idea-modal-content').innerHTML = `
-        <div class="p-6 border-b border-slate-700">
-          <div class="flex items-start justify-between gap-4">
-            <div class="flex-1">
-              <h2 class="text-xl font-semibold text-white mb-2">${escapeHtml(idea.title)}</h2>
-              <div class="flex items-center gap-3 flex-wrap">
-                <span class="px-3 py-1 rounded-full text-sm font-medium" style="background-color: ${stage.color}20; color: ${stage.color}">${stage.emoji} ${stage.label}</span>
-                ${idea.blocked ? '<span class="px-3 py-1 rounded-full text-sm font-medium bg-red-500/20 text-red-400">🚩 Blocked</span>' : ''}
+        <!-- Drag handle for mobile -->
+        <div class="sm:hidden flex justify-center pt-3 pb-1 flex-shrink-0">
+          <div class="w-10 h-1 bg-slate-600 rounded-full"></div>
+        </div>
+
+        <!-- Header -->
+        <div class="p-4 sm:p-6 border-b border-slate-700 flex-shrink-0">
+          <div class="flex items-start justify-between gap-3">
+            <div class="flex-1 min-w-0">
+              <h2 class="text-lg sm:text-xl font-semibold text-white mb-2 pr-2">${escapeHtml(idea.title)}</h2>
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="px-3 py-1 rounded-full text-xs sm:text-sm font-medium" style="background-color: ${stage.color}20; color: ${stage.color}">${stage.emoji} ${stage.label}</span>
+                ${idea.blocked ? '<span class="px-3 py-1 rounded-full text-xs sm:text-sm font-medium bg-red-500/20 text-red-400">🚩 Blocked</span>' : ''}
               </div>
             </div>
-            <button onclick="closeIdeaModal()" class="text-slate-400 hover:text-white p-1">
+            <button onclick="closeIdeaModal()" class="text-slate-400 active:text-white p-2 -mr-2 touch-active rounded-lg min-w-[44px] min-h-[44px] flex items-center justify-center">
               <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
           </div>
         </div>
-        <div class="p-6 space-y-6 max-h-[60vh] overflow-y-auto">
+
+        <!-- Scrollable Content -->
+        <div class="flex-1 overflow-y-auto scroll-container p-4 sm:p-6 space-y-5 modal-scroll">
           ${idea.description ? `
             <div>
-              <h3 class="text-sm font-medium text-slate-400 mb-2">Description</h3>
-              <p class="text-slate-200 whitespace-pre-wrap">${escapeHtml(idea.description)}</p>
+              <h3 class="text-xs sm:text-sm font-medium text-slate-400 mb-2">Description</h3>
+              <p class="text-slate-200 text-sm sm:text-base whitespace-pre-wrap">${escapeHtml(idea.description)}</p>
             </div>
           ` : ''}
+
           ${idea.blocked && idea.blockedReason ? `
-            <div class="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
-              <h3 class="text-sm font-medium text-red-400 mb-1">Blocked Reason</h3>
-              <p class="text-red-300">${escapeHtml(idea.blockedReason)}</p>
+            <div class="bg-red-500/10 border border-red-500/30 rounded-xl p-4">
+              <h3 class="text-xs sm:text-sm font-medium text-red-400 mb-1">Blocked Reason</h3>
+              <p class="text-red-300 text-sm">${escapeHtml(idea.blockedReason)}</p>
             </div>
           ` : ''}
+
           <div>
-            <h3 class="text-sm font-medium text-slate-400 mb-2">Categories</h3>
+            <h3 class="text-xs sm:text-sm font-medium text-slate-400 mb-2">Categories</h3>
             <div class="flex flex-wrap gap-2">
               ${ideaCategories.length > 0 ? ideaCategories.map(cat => `
-                <span class="px-3 py-1 rounded-full text-sm font-medium inline-flex items-center gap-2" style="background-color: ${cat.color}20; color: ${cat.color}">
+                <span class="px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium inline-flex items-center gap-2" style="background-color: ${cat.color}20; color: ${cat.color}">
                   ${cat.label}
-                  ${state.isAdmin ? `<button onclick="removeIdeaCategory('${idea.id}', '${cat.id}')" class="hover:opacity-70">×</button>` : ''}
+                  ${state.isAdmin ? `<button onclick="removeIdeaCategory('${idea.id}', '${cat.id}')" class="hover:opacity-70 min-w-[20px] min-h-[20px]">×</button>` : ''}
                 </span>
               `).join('') : '<span class="text-slate-500 text-sm">No categories</span>'}
             </div>
@@ -593,24 +768,26 @@
                 <p class="text-xs text-slate-500 mb-2">Add category:</p>
                 <div class="flex flex-wrap gap-2">
                   ${availableCategories.map(cat => `
-                    <button onclick="addIdeaCategory('${idea.id}', '${cat.id}')" class="px-2 py-1 rounded-full text-xs font-medium opacity-50 hover:opacity-100 transition-opacity" style="background-color: ${cat.color}20; color: ${cat.color}">+ ${cat.label}</button>
+                    <button onclick="addIdeaCategory('${idea.id}', '${cat.id}')" class="px-2 py-1.5 rounded-full text-xs font-medium opacity-50 active:opacity-100 transition-opacity touch-active min-h-[32px]" style="background-color: ${cat.color}20; color: ${cat.color}">+ ${cat.label}</button>
                   `).join('')}
                 </div>
               </div>
             ` : ''}
           </div>
-          <div class="flex items-center gap-6 text-sm text-slate-400">
-            <span>Submitted by: <span class="text-white">${escapeHtml(idea.submitter)}</span></span>
+
+          <div class="flex items-center gap-4 sm:gap-6 text-xs sm:text-sm text-slate-400 flex-wrap">
+            <span>by <span class="text-white">${escapeHtml(idea.submitter)}</span></span>
             ${idea.createdAt ? `<span>${new Date(idea.createdAt).toLocaleDateString()}</span>` : ''}
           </div>
+
           <div>
-            <h3 class="text-sm font-medium text-slate-400 mb-3">Notes (${(idea.notes || []).length})</h3>
+            <h3 class="text-xs sm:text-sm font-medium text-slate-400 mb-3">Notes (${(idea.notes || []).length})</h3>
             <div class="space-y-3">
               ${(idea.notes || []).map(note => `
-                <div class="bg-slate-700/50 rounded-lg p-3">
+                <div class="bg-slate-700/50 rounded-xl p-3">
                   <div class="flex items-start justify-between gap-2">
                     <p class="text-slate-200 text-sm">${escapeHtml(note.text)}</p>
-                    ${state.isAdmin ? `<button onclick="deleteNote('${idea.id}', '${note.id}')" class="text-slate-500 hover:text-red-400 text-sm flex-shrink-0">Delete</button>` : ''}
+                    ${state.isAdmin ? `<button onclick="deleteNote('${idea.id}', '${note.id}')" class="text-slate-500 active:text-red-400 text-xs flex-shrink-0 touch-active min-w-[44px] min-h-[32px]">Delete</button>` : ''}
                   </div>
                   <div class="flex items-center gap-3 mt-2 text-xs text-slate-500">
                     <span>${escapeHtml(note.author)}</span>
@@ -621,45 +798,50 @@
             </div>
             ${state.isAdmin ? `
               <div class="mt-4 space-y-2">
-                <input type="text" id="note-author" placeholder="Your name" class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <input type="text" id="note-author" placeholder="Your name" class="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-xl text-white placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <div class="flex gap-2">
-                  <input type="text" id="note-text" placeholder="Add a note..." class="flex-1 px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" onkeydown="if(event.key==='Enter')addNote('${idea.id}')">
-                  <button onclick="addNote('${idea.id}')" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors">Add</button>
+                  <input type="text" id="note-text" placeholder="Add a note..." class="flex-1 px-4 py-3 bg-slate-700 border border-slate-600 rounded-xl text-white placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" onkeydown="if(event.key==='Enter')addNote('${idea.id}')">
+                  <button onclick="addNote('${idea.id}')" class="px-4 py-3 bg-blue-600 active:bg-blue-700 text-white text-sm rounded-xl transition-colors touch-active min-w-[60px]">Add</button>
                 </div>
               </div>
             ` : ''}
           </div>
+
+          ${state.isAdmin ? `
+            <div class="border-t border-slate-700 pt-5 space-y-4">
+              <div>
+                <h3 class="text-xs sm:text-sm font-medium text-slate-400 mb-2">Move to Stage</h3>
+                <div class="flex flex-wrap gap-2">
+                  ${STAGES.map(s => `
+                    <button onclick="moveIdea('${idea.id}', '${s.id}')" ${s.id === idea.stage ? 'disabled' : ''} class="px-3 py-2 rounded-xl text-xs sm:text-sm font-medium transition-colors touch-active min-h-[40px] ${s.id === idea.stage ? 'bg-slate-600 text-slate-400 cursor-not-allowed' : 'active:opacity-80'}" style="${s.id !== idea.stage ? `background-color: ${s.color}30; color: ${s.color}` : ''}">${s.emoji} ${s.label}</button>
+                  `).join('')}
+                </div>
+              </div>
+
+              <div>
+                <h3 class="text-xs sm:text-sm font-medium text-slate-400 mb-2">Status</h3>
+                <div id="blocked-controls">
+                  ${idea.blocked ? `
+                    <button onclick="unblockIdea('${idea.id}')" class="px-4 py-3 rounded-xl text-sm font-medium transition-colors bg-green-600/20 active:bg-green-600/30 text-green-400 touch-active min-h-[48px]">✓ Unblock Idea</button>
+                  ` : `
+                    <div id="block-form-${idea.id}" class="hidden flex gap-2 flex-col sm:flex-row">
+                      <input type="text" id="block-reason-${idea.id}" placeholder="Reason for blocking..." class="flex-1 px-4 py-3 bg-slate-700 border border-slate-600 rounded-xl text-white placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
+                      <div class="flex gap-2">
+                        <button onclick="confirmBlockIdea('${idea.id}')" class="flex-1 sm:flex-none px-4 py-3 bg-red-600 active:bg-red-700 text-white text-sm rounded-xl transition-colors touch-active">Block</button>
+                        <button onclick="cancelBlockIdea('${idea.id}')" class="flex-1 sm:flex-none px-4 py-3 bg-slate-700 active:bg-slate-600 text-white text-sm rounded-xl transition-colors touch-active">Cancel</button>
+                      </div>
+                    </div>
+                    <button id="block-btn-${idea.id}" onclick="showBlockForm('${idea.id}')" class="px-4 py-3 rounded-xl text-sm font-medium transition-colors bg-red-600/20 active:bg-red-600/30 text-red-400 touch-active min-h-[48px]">🚩 Flag as Blocked</button>
+                  `}
+                </div>
+              </div>
+
+              <div class="safe-bottom">
+                <button onclick="deleteIdea('${idea.id}')" id="delete-btn-${idea.id}" class="px-4 py-3 rounded-xl text-sm font-medium transition-colors bg-slate-700 active:bg-slate-600 text-red-400 touch-active min-h-[48px]">Delete Idea</button>
+              </div>
+            </div>
+          ` : '<div class="safe-bottom"></div>'}
         </div>
-        ${state.isAdmin ? `
-          <div class="p-6 border-t border-slate-700 space-y-4">
-            <div>
-              <h3 class="text-sm font-medium text-slate-400 mb-2">Move to Stage</h3>
-              <div class="flex flex-wrap gap-2">
-                ${STAGES.map(s => `
-                  <button onclick="moveIdea('${idea.id}', '${s.id}')" ${s.id === idea.stage ? 'disabled' : ''} class="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${s.id === idea.stage ? 'bg-slate-600 text-slate-400 cursor-not-allowed' : 'hover:opacity-80'}" style="${s.id !== idea.stage ? `background-color: ${s.color}30; color: ${s.color}` : ''}">${s.emoji} ${s.label}</button>
-                `).join('')}
-              </div>
-            </div>
-            <div>
-              <h3 class="text-sm font-medium text-slate-400 mb-2">Status</h3>
-              <div id="blocked-controls">
-                ${idea.blocked ? `
-                  <button onclick="unblockIdea('${idea.id}')" class="px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-green-600/20 hover:bg-green-600/30 text-green-400">✓ Unblock Idea</button>
-                ` : `
-                  <div id="block-form-${idea.id}" class="hidden flex gap-2">
-                    <input type="text" id="block-reason-${idea.id}" placeholder="Reason for blocking..." class="flex-1 px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
-                    <button onclick="confirmBlockIdea('${idea.id}')" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm rounded-lg transition-colors">Block</button>
-                    <button onclick="cancelBlockIdea('${idea.id}')" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white text-sm rounded-lg transition-colors">Cancel</button>
-                  </div>
-                  <button id="block-btn-${idea.id}" onclick="showBlockForm('${idea.id}')" class="px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-red-600/20 hover:bg-red-600/30 text-red-400">🚩 Flag as Blocked</button>
-                `}
-              </div>
-            </div>
-            <div>
-              <button onclick="deleteIdea('${idea.id}')" id="delete-btn-${idea.id}" class="px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-slate-700 hover:bg-slate-600 text-red-400">Delete Idea</button>
-            </div>
-          </div>
-        ` : ''}
       `;
     }
 
@@ -667,10 +849,13 @@
       document.getElementById('admin-code-input').value = '';
       document.getElementById('admin-error').classList.add('hidden');
       document.getElementById('admin-modal').classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+      setTimeout(() => document.getElementById('admin-code-input').focus(), 100);
     }
 
     function closeAdminModal() {
       document.getElementById('admin-modal').classList.add('hidden');
+      document.body.style.overflow = '';
     }
 
     function toggleAdmin() {
@@ -679,6 +864,7 @@
         localStorage.removeItem('local478_admin');
         updateAdminButton();
         render();
+        showToast('Admin mode disabled');
       } else {
         openAdminModal();
       }
@@ -693,19 +879,21 @@
         closeAdminModal();
         updateAdminButton();
         render();
+        showToast('Admin mode enabled');
       } else {
         document.getElementById('admin-error').classList.remove('hidden');
+        document.getElementById('admin-code-input').value = '';
       }
     }
 
     function updateAdminButton() {
       const btn = document.getElementById('btn-admin');
       if (state.isAdmin) {
-        btn.textContent = 'Exit Admin';
-        btn.className = 'px-3 py-2 bg-red-600/20 hover:bg-red-600/30 text-red-400 text-sm font-medium rounded-lg transition-colors border border-red-600/30';
+        btn.innerHTML = '<span class="sm:hidden">🔓</span><span class="hidden sm:inline">Exit Admin</span>';
+        btn.className = 'px-2.5 py-2 sm:px-3 sm:py-2 bg-red-600/20 active:bg-red-600/30 text-red-400 text-xs sm:text-sm font-medium rounded-lg transition-colors border border-red-600/30 touch-active';
       } else {
-        btn.textContent = 'Admin';
-        btn.className = 'px-3 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm font-medium rounded-lg transition-colors';
+        btn.innerHTML = '<span class="sm:hidden">⚙️</span><span class="hidden sm:inline">Admin</span>';
+        btn.className = 'px-2.5 py-2 sm:px-3 sm:py-2 bg-slate-700 active:bg-slate-600 text-slate-300 text-xs sm:text-sm font-medium rounded-lg transition-colors touch-active';
       }
     }
 
@@ -733,9 +921,10 @@
         await saveData();
         renderIdeaModal();
         render();
+        showToast('Idea moved');
       } catch (err) {
         idea.stage = oldStage;
-        alert('Failed to move idea. Please try again.');
+        showToast('Failed to move. Try again.');
       }
     }
 
@@ -762,10 +951,11 @@
         state.selectedIdea = idea;
         renderIdeaModal();
         render();
+        showToast('Idea blocked');
       } catch (err) {
         idea.blocked = false;
         idea.blockedReason = '';
-        alert('Failed to block idea. Please try again.');
+        showToast('Failed. Try again.');
       }
     }
 
@@ -780,16 +970,20 @@
         state.selectedIdea = idea;
         renderIdeaModal();
         render();
+        showToast('Idea unblocked');
       } catch (err) {
         idea.blocked = true;
-        alert('Failed to unblock idea. Please try again.');
+        showToast('Failed. Try again.');
       }
     }
 
     async function addNote(ideaId) {
       const author = document.getElementById('note-author').value.trim();
       const text = document.getElementById('note-text').value.trim();
-      if (!author || !text) return;
+      if (!author || !text) {
+        showToast('Enter name and note');
+        return;
+      }
 
       const idea = state.ideas.find(i => i.id === ideaId);
       if (!idea) return;
@@ -805,9 +999,10 @@
         document.getElementById('note-text').value = '';
         state.selectedIdea = idea;
         renderIdeaModal();
+        showToast('Note added');
       } catch (err) {
         idea.notes.pop();
-        alert('Failed to add note. Please try again.');
+        showToast('Failed. Try again.');
       }
     }
 
@@ -825,9 +1020,10 @@
         await saveData();
         state.selectedIdea = idea;
         renderIdeaModal();
+        showToast('Note deleted');
       } catch (err) {
         idea.notes.splice(noteIndex, 0, deletedNote);
-        alert('Failed to delete note. Please try again.');
+        showToast('Failed. Try again.');
       }
     }
 
@@ -844,7 +1040,7 @@
         render();
       } catch (err) {
         idea.categories.pop();
-        alert('Failed to add category. Please try again.');
+        showToast('Failed. Try again.');
       }
     }
 
@@ -862,7 +1058,7 @@
         render();
       } catch (err) {
         idea.categories.splice(index, 0, catId);
-        alert('Failed to remove category. Please try again.');
+        showToast('Failed. Try again.');
       }
     }
 
@@ -870,8 +1066,8 @@
       const btn = document.getElementById(`delete-btn-${ideaId}`);
       if (btn.dataset.confirm !== 'true') {
         btn.dataset.confirm = 'true';
-        btn.textContent = 'Click again to confirm';
-        btn.className = 'px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-red-600 hover:bg-red-700 text-white';
+        btn.textContent = 'Tap again to confirm';
+        btn.className = 'px-4 py-3 rounded-xl text-sm font-medium transition-colors bg-red-600 active:bg-red-700 text-white touch-active min-h-[48px]';
         return;
       }
 
@@ -883,9 +1079,10 @@
         await saveData();
         closeIdeaModal();
         render();
+        showToast('Idea deleted');
       } catch (err) {
         state.ideas.splice(index, 0, deleted);
-        alert('Failed to delete idea. Please try again.');
+        showToast('Failed. Try again.');
       }
     }
 
@@ -895,9 +1092,10 @@
       try {
         await saveData();
         render();
+        showToast('Category added');
       } catch (err) {
         state.categories.pop();
-        alert('Failed to add category. Please try again.');
+        showToast('Failed. Try again.');
       }
     }
 
@@ -921,14 +1119,61 @@
       return div.innerHTML;
     }
 
-    // Touch swipe support
+    // ==================== TOUCH/SWIPE HANDLING ====================
     let touchStartX = null;
-    document.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; });
+    let touchStartY = null;
+    let touchStartTime = null;
+
+    document.addEventListener('touchstart', e => {
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+      touchStartTime = Date.now();
+    }, { passive: true });
+
     document.addEventListener('touchend', e => {
       if (touchStartX === null || state.view !== 'pipeline') return;
-      const diff = touchStartX - e.changedTouches[0].clientX;
-      if (Math.abs(diff) > 50) navigateStage(diff > 0 ? 1 : -1);
+
+      const touchEndX = e.changedTouches[0].clientX;
+      const touchEndY = e.changedTouches[0].clientY;
+      const diffX = touchStartX - touchEndX;
+      const diffY = touchStartY - touchEndY;
+      const timeDiff = Date.now() - touchStartTime;
+
+      // Only trigger swipe if:
+      // - Horizontal movement > 80px
+      // - Horizontal movement > vertical movement (not scrolling)
+      // - Swipe completed in under 500ms
+      // - Not in a modal
+      if (Math.abs(diffX) > 80 && Math.abs(diffX) > Math.abs(diffY) * 1.5 && timeDiff < 500) {
+        const modal = document.querySelector('.modal-backdrop:not(.hidden)');
+        if (!modal) {
+          navigateStage(diffX > 0 ? 1 : -1);
+        }
+      }
+
       touchStartX = null;
+      touchStartY = null;
+      touchStartTime = null;
+    }, { passive: true });
+
+    // ==================== KEYBOARD HANDLING ====================
+    document.addEventListener('keydown', e => {
+      // Close modals on Escape
+      if (e.key === 'Escape') {
+        const submitModal = document.getElementById('submit-modal');
+        const adminModal = document.getElementById('admin-modal');
+        const ideaModal = document.getElementById('idea-modal');
+
+        if (!submitModal.classList.contains('hidden')) closeSubmitModal();
+        else if (!adminModal.classList.contains('hidden')) closeAdminModal();
+        else if (!ideaModal.classList.contains('hidden')) closeIdeaModal();
+      }
+
+      // Navigate stages with arrow keys (when no modal open)
+      if (state.view === 'pipeline' && !document.querySelector('.modal-backdrop:not(.hidden)')) {
+        if (e.key === 'ArrowLeft') navigateStage(-1);
+        else if (e.key === 'ArrowRight') navigateStage(1);
+      }
     });
 
     // Initialize
