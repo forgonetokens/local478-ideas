@@ -385,12 +385,11 @@
       const snapshot = await categoriesRef.get();
       if (snapshot.empty) {
         const defaultCategories = [
-          { label: 'Workflow', color: '#3B82F6' },
-          { label: 'Safety', color: '#EF4444' },
-          { label: 'Training', color: '#8B5CF6' },
-          { label: 'Equipment', color: '#F59E0B' },
-          { label: 'Communication', color: '#10B981' },
-          { label: 'Benefits', color: '#EC4899' }
+          { label: 'Targeted Outreach', color: '#3B82F6' },
+          { label: 'Membership Services', color: '#8B5CF6' },
+          { label: 'Benefits', color: '#10B981' },
+          { label: 'Compliance', color: '#EF4444' },
+          { label: 'Internal Tools', color: '#F59E0B' }
         ];
         for (const cat of defaultCategories) {
           await categoriesRef.add(cat);
